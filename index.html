@@ -581,7 +581,7 @@ function App(){
           <label style={S.lbl}>空転の種別</label>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:4}}>
             {[["A","迎車キャンセル","予約が入ったがキャンセルに"],["B","メーター空転","連続配車中に客を発見しモードを抜けた"]].map(([t,name,desc])=>(
-              <button key={t} onClick={()=>{setKType(t);setKFare(t==="A"?"500":"");}} style={{
+              <button key={t} onClick={()=>{setKType(t);setKFare("500");}} style={{
                 padding:"10px 8px",borderRadius:"var(--r)",cursor:"pointer",textAlign:"left",
                 border:`1.5px solid ${kType===t?"var(--err-bd)":"var(--bdr)"}`,
                 background:kType===t?"var(--err-bg)":"var(--bg)",
@@ -615,9 +615,10 @@ function App(){
         )}
         {kType==="B"&&(
           <div style={S.card}>
-            <label style={S.lbl}>空転金額（円）</label>
-            <input type="number" inputMode="numeric" value={kFare} onChange={e=>setKFare(e.target.value)}
-              placeholder="0" style={{...S.inp,fontSize:24,fontFamily:"var(--mono)",textAlign:"right"}}/>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <label style={{...S.lbl,margin:0}}>空転金額</label>
+              <span style={{fontSize:20,fontWeight:500,fontFamily:"var(--mono)"}}>¥500（固定）</span>
+            </div>
           </div>
         )}
 
