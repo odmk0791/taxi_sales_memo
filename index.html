@@ -73,40 +73,28 @@ const KOTEI_OPTS   = ["N","L","M","S"];
 const KOTEI_LABELS = {N:"なし",L:"Long",M:"Middle",S:"Short"};
 const DOW_JP = ["日","月","火","水","木","金","土"];
 const PAY_CLR = {"GO Pay":"var(--warn)","現金":"var(--ok)","クレジット":"var(--info)","IC":"var(--info)","QRコード":"var(--warn)"};
-
-/* ── 勤務時間帯の定義：16時開始シフト ──
-   00:00〜15:59 の実時刻 → 24時間加算して表示（例：01:30 → 25:30）
-   16:00〜23:59 の実時刻 → そのまま
-   日付も同様：00〜15時台は「昨日」が勤務日 */
 const SHIFT_START_HOUR = 16;
 
-const {useState,useEffect,useMemo} = React;
-
+const {useState,useEffect,useMemo,useCallback} = React;
 const pad2 = n => String(n).padStart(2,"0");
 
+/* ── 時刻・日付（16時シフト対応）── */
 function getShiftNow(){
-  const d = new Date();
-  const h = d.getHours(), m = d.getMinutes();
-  // 00:00〜15:59 → 24+h 時として返す
-  const dispH = h < SHIFT_START_HOUR ? h + 24 : h;
-  return `${pad2(dispH)}:${pad2(m)}`;
+  const d=new Date(), h=d.getHours();
+  return `${pad2(h < SHIFT_START_HOUR ? h+24 : h)}:${pad2(d.getMinutes())}`;
 }
-
 function getShiftDate(){
-  const d = new Date();
-  // 00:00〜15:59 は前日が勤務日付
-  if(d.getHours() < SHIFT_START_HOUR){
-    d.setDate(d.getDate() - 1);
-  }
+  const d=new Date();
+  if(d.getHours() < SHIFT_START_HOUR) d.setDate(d.getDate()-1);
   return `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}`;
 }
-
-const getDow = s => {
+const getDow = s=>{
   if(!s)return"";
-  const d = new Date(s.replace(/\//g,"-"));
+  const d=new Date(s.replace(/\//g,"-"));
   return isNaN(d)?"":DOW_JP[d.getDay()]||"";
 };
 
+/* ── 実車時間計算 ── */
 function calcJitsu(p,d){
   const toM=t=>{if(!t)return null;const[h,m]=t.split(":").map(Number);return h*60+(m||0);};
   const pm=toM(p),dm=toM(d);
@@ -115,24 +103,70 @@ function calcJitsu(p,d){
   return `${Math.floor(diff/60)}:${pad2(diff%60)}`;
 }
 
+/* ── 住所パース ── */
 function parseAddr(addr){
   if(!addr)return{ward:"その他",area:""};
   const m=addr.match(/^(.+?[区市郡])(.+)$/);
   return m?{ward:m[1],area:m[2]}:{ward:"その他",area:addr};
 }
 
+/* ── 料金フォーマット ── */
 function fmtFare(n){
   const v=parseInt(String(n).replace(/[^0-9]/g,""));
   return isNaN(v)?"":"¥"+v.toLocaleString();
 }
 
+/* ── Haversine距離（km）── */
+function haversine(lat1,lon1,lat2,lon2){
+  const R=6371, toR=x=>x*Math.PI/180;
+  const dLat=toR(lat2-lat1), dLon=toR(lon2-lon1);
+  const a=Math.sin(dLat/2)**2 +
+          Math.cos(toR(lat1))*Math.cos(toR(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+/* ── DBから緯度・経度を読む（複数の列名に対応）── */
+function extractLatLng(row){
+  const lat = parseFloat(
+    row["緯度"]||row["lat"]||row["latitude"]||row["Lat"]||row["LAT"]||""
+  );
+  const lng = parseFloat(
+    row["経度"]||row["lng"]||row["longitude"]||row["Lng"]||row["LON"]||row["lon"]||""
+  );
+  return (isNaN(lat)||isNaN(lng)) ? null : {lat,lng};
+}
+
+/* ── GPS：最寄り地点を検索 ── */
+function findNearest(lat,lng,locList){
+  let best=null, bestDist=Infinity;
+  for(const loc of locList){
+    if(!loc.lat||!loc.lng)continue;
+    const d=haversine(lat,lng,loc.lat,loc.lng);
+    if(d<bestDist){bestDist=d;best=loc;}
+  }
+  return best ? {...best, distM:Math.round(bestDist*1000)} : null;
+}
+
+/* ── GPS取得 Promise ── */
+function getGPS(timeoutMs=8000){
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation){reject(new Error("GPS非対応"));return;}
+    navigator.geolocation.getCurrentPosition(
+      p=>resolve({lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy)}),
+      e=>reject(new Error(e.code===1?"位置情報の許可が必要です":e.code===2?"GPS取得失敗":"タイムアウト")),
+      {enableHighAccuracy:true,timeout:timeoutMs,maximumAge:0}
+    );
+  });
+}
+
+/* ── Google Forms 送信 ── */
 async function submitToForm(trip){
   if(!FORM_ID)return false;
   const url=`https://docs.google.com/forms/d/${FORM_ID}/formResponse`;
   const body=new FormData();
   const map={
     [FIELDS.date]:trip.date,       [FIELDS.dow]:trip.dow,
-    [FIELDS.pTime]:trip.pTime,     [FIELDS.dTime]:trip.dTime,   [FIELDS.jitsu]:trip.jitsu,
+    [FIELDS.pTime]:trip.pTime,     [FIELDS.dTime]:trip.dTime,  [FIELDS.jitsu]:trip.jitsu,
     [FIELDS.pWard]:trip.pWard,     [FIELDS.pArea]:trip.pArea,
     [FIELDS.dWard]:trip.dWard,     [FIELDS.dArea]:trip.dArea,
     [FIELDS.fare]:fmtFare(trip.fare), [FIELDS.acc]:trip.acc,
@@ -144,10 +178,12 @@ async function submitToForm(trip){
   };
   Object.entries(map).forEach(([k,v])=>body.append(k,v));
   try{await fetch(url,{method:"POST",mode:"no-cors",body});return true;}
-  catch(e){return false;}
+  catch{return false;}
 }
 
-/* ── Styles ── */
+/* ══════════════════════════════════════
+   スタイル定数
+══════════════════════════════════════ */
 const S={
   wrap: {maxWidth:480,margin:"0 auto",minHeight:"100vh",background:"var(--bg3)"},
   hdr:  {background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)",padding:"11px 14px",
@@ -171,8 +207,11 @@ const S={
          boxShadow:"0 2px 8px rgba(0,0,0,.10)"},
 };
 
+/* ══════════════════════════════════════
+   共通コンポーネント
+══════════════════════════════════════ */
 function Toggle({on,onToggle,label,sub,color}){
-  const c = color||"var(--info)";
+  const c=color||"var(--info)";
   return <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
     <div>
       <p style={{fontSize:14,fontWeight:on?500:400,color:on?c:"var(--txt)",margin:0}}>{label}</p>
@@ -181,8 +220,7 @@ function Toggle({on,onToggle,label,sub,color}){
     <button onClick={onToggle} style={{
       width:46,height:26,borderRadius:13,padding:"0 2px",cursor:"pointer",flexShrink:0,
       background:on?`color-mix(in srgb, ${c} 15%, var(--bg))`:"var(--bg2)",
-      border:`0.5px solid ${on?c:"var(--bdr2)"}`,
-      display:"flex",alignItems:"center",
+      border:`0.5px solid ${on?c:"var(--bdr2)"}`,display:"flex",alignItems:"center",
     }}>
       <div style={{width:20,height:20,borderRadius:"50%",background:on?c:"var(--txt3)",
                    marginLeft:on?"auto":0,transition:"margin .2s"}}/>
@@ -203,14 +241,20 @@ function Chip({opts,val,onC,clrMap={}}){
   </div>;
 }
 
-function LocBtn({ward,area,onClick}){
+function LocBtn({ward,area,lat,lng,onClick}){
+  const hasGps=lat!=null&&lng!=null;
   return <button onClick={onClick} style={{
     width:"100%",padding:"10px 12px",border:"0.5px solid var(--bdr2)",
     borderRadius:"var(--r)",background:"var(--bg2)",
     color:ward?"var(--txt)":"var(--txt3)",fontSize:14,cursor:"pointer",
     textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"
   }}>
-    <span>{ward?`${ward}　${area}`:"市区・地名を選択 →"}</span>
+    <span>
+      {ward?`${ward}　${area}`:"市区・地名を選択 →"}
+      {hasGps&&<span style={{fontSize:11,color:"var(--ok)",marginLeft:6}}>
+        <i className="ti ti-map-pin" style={{fontSize:11}}/> GPS
+      </span>}
+    </span>
     <i className="ti ti-chevron-right" style={{fontSize:14,color:"var(--txt3)"}}/>
   </button>;
 }
@@ -232,12 +276,18 @@ function TimeRow({label,val,set,jitsuLabel}){
   </div>;
 }
 
+/* ══════════════════════════════════════
+   App
+══════════════════════════════════════ */
 function App(){
-  const [locDB,setLocDB]=useState({});
+  /* ── 住所DB（ward/area/lat/lng の配列）── */
+  const [locList,setLocList]=useState([]); // [{ward,area,lat,lng,name}]
+  const [locDB,setLocDB]=useState({});     // {ward:[area,...]}
   const [locLoad,setLocLoad]=useState(true);
   const [locN,setLocN]=useState(0);
   const [wards,setWards]=useState([]);
 
+  /* ── データ ── */
   const [trips,setTrips]=useState(()=>{
     try{return JSON.parse(localStorage.getItem(STORE_KEY)||"[]");}catch{return[];}
   });
@@ -245,17 +295,20 @@ function App(){
     try{return JSON.parse(localStorage.getItem(KUUTEN_KEY)||"[]");}catch{return[];}
   });
 
+  /* ── 画面制御 ── */
   const [screen,setScreen]=useState("log");
   const [editId,setEditId]=useState(null);
   const [copied,setCopied]=useState(false);
   const [sending,setSending]=useState(false);
   const [sendResult,setSendResult]=useState(null);
 
-  /* ── Trip form ── */
+  /* ── 乗車記録フォーム ── */
   const [formDate,setFormDate]=useState(getShiftDate());
   const [fp,setFp]=useState(""); const [fd,setFd]=useState("");
   const [fpWard,setFpWard]=useState(""); const [fpArea,setFpArea]=useState("");
+  const [fpLat,setFpLat]=useState(null); const [fpLng,setFpLng]=useState(null);
   const [fdWard,setFdWard]=useState(""); const [fdArea,setFdArea]=useState("");
+  const [fdLat,setFdLat]=useState(null); const [fdLng,setFdLng]=useState(null);
   const [fare,setFare]=useState("");
   const [pay,setPay]=useState("GO Pay");
   const [acc,setAcc]=useState("専用");
@@ -266,35 +319,47 @@ function App(){
   const [easternName,setEasternName]=useState("");
   const [memo,setMemo]=useState("");
 
-  /* ── Kuuten form ── */
+  /* ── 空転フォーム ── */
   const [kType,setKType]=useState("A");
   const [kTime,setKTime]=useState("");
   const [kWard,setKWard]=useState(""); const [kArea,setKArea]=useState("");
+  const [kLat,setKLat]=useState(null); const [kLng,setKLng]=useState(null);
   const [kFare,setKFare]=useState("500");
   const [kMemo,setKMemo]=useState("");
 
-  /* ── Location picker ── */
-  const [pickerFor,setPickerFor]=useState(null);
+  /* ── 住所ピッカー ── */
+  const [pickerFor,setPickerFor]=useState(null); // "p"|"d"|"k"
   const [pickWard,setPickWard]=useState("");
   const [areaQ,setAreaQ]=useState("");
+  const [gpsState,setGpsState]=useState("idle"); // idle|loading|ok|err
+  const [gpsMsg,setGpsMsg]=useState("");
 
+  /* ── persist ── */
   useEffect(()=>{try{localStorage.setItem(STORE_KEY,JSON.stringify(trips));}catch{}},[trips]);
   useEffect(()=>{try{localStorage.setItem(KUUTEN_KEY,JSON.stringify(kuutens));}catch{}},[kuutens]);
 
+  /* ── 住所DB読み込み（lat/lng も取得）── */
   useEffect(()=>{
     Papa.parse(LOC_CSV,{
       download:true,header:true,skipEmptyLines:true,
       complete:({data})=>{
-        const db={};let n=0;
+        const db={};const list=[];let n=0;
         data.forEach(row=>{
-          const name=row["住所名"]||row["名称"]||row["場所名"]||Object.values(row).find(v=>v&&isNaN(v))||"";
+          const name=row["住所名"]||row["名称"]||row["場所名"]||
+                     Object.values(row).find(v=>v&&isNaN(v))||"";
           if(!name.trim())return;
           const{ward,area}=parseAddr(name.trim());
+          const coords=extractLatLng(row);
           if(!db[ward])db[ward]=new Set();
-          db[ward].add(area);n++;
+          db[ward].add(area);
+          list.push({ward,area,name:name.trim(),
+                     lat:coords?.lat||null, lng:coords?.lng||null});
+          n++;
         });
-        const res={};Object.keys(db).sort().forEach(k=>{res[k]=Array.from(db[k]).sort();});
-        setLocDB(res);setWards(Object.keys(res));setLocN(n);setLocLoad(false);
+        const res={};
+        Object.keys(db).sort().forEach(k=>{res[k]=Array.from(db[k]).sort();});
+        setLocDB(res); setWards(Object.keys(res));
+        setLocList(list); setLocN(n); setLocLoad(false);
       },
       error:()=>setLocLoad(false)
     });
@@ -305,26 +370,62 @@ function App(){
     return areaQ?all.filter(a=>a.includes(areaQ)):all;
   },[locDB,pickWard,areaQ]);
 
+  /* ── 住所ピッカーを開く ── */
   const openPicker=f=>{
     setPickerFor(f);
     setPickWard(f==="p"?fpWard:f==="d"?fdWard:kWard);
-    setAreaQ("");
+    setAreaQ(""); setGpsState("idle"); setGpsMsg("");
   };
-  const pickArea=a=>{
-    if(pickerFor==="p"){setFpWard(pickWard);setFpArea(a);}
-    else if(pickerFor==="d"){setFdWard(pickWard);setFdArea(a);}
-    else{setKWard(pickWard);setKArea(a);}
+
+  /* ── リストから住所を選択 ── */
+  const pickArea=(a,ward)=>{
+    const w=ward||pickWard;
+    if(pickerFor==="p"){setFpWard(w);setFpArea(a);setFpLat(null);setFpLng(null);}
+    else if(pickerFor==="d"){setFdWard(w);setFdArea(a);setFdLat(null);setFdLng(null);}
+    else{setKWard(w);setKArea(a);setKLat(null);setKLng(null);}
     setPickerFor(null);
   };
 
+  /* ── GPSで現在地を取得して最寄り住所をセット ── */
+  const handleGPS=useCallback(async()=>{
+    setGpsState("loading"); setGpsMsg("GPS取得中…");
+    try{
+      const {lat,lng,acc}=await getGPS();
+      setGpsMsg(`精度 ±${acc}m で取得中…`);
+      const nearest=findNearest(lat,lng,locList.filter(l=>l.lat));
+      if(!nearest){setGpsState("err");setGpsMsg("近くの住所が見つかりませんでした");return;}
+      /* 確認メッセージ */
+      setGpsMsg(`📍 ${nearest.ward}${nearest.area}（約${nearest.distM}m）`);
+      setGpsState("ok");
+      /* セット */
+      if(pickerFor==="p"){
+        setFpWard(nearest.ward);setFpArea(nearest.area);
+        setFpLat(lat);setFpLng(lng);
+      }else if(pickerFor==="d"){
+        setFdWard(nearest.ward);setFdArea(nearest.area);
+        setFdLat(lat);setFdLng(lng);
+      }else{
+        setKWard(nearest.ward);setKArea(nearest.area);
+        setKLat(lat);setKLng(lng);
+      }
+      /* 少し待ってから閉じる */
+      setTimeout(()=>setPickerFor(null),1200);
+    }catch(e){
+      setGpsState("err");setGpsMsg(e.message||"GPS取得に失敗しました");
+    }
+  },[locList,pickerFor]);
+
   const jitsu=useMemo(()=>calcJitsu(fp,fd),[fp,fd]);
 
+  /* ── フォームリセット ── */
   const resetTripForm=(t=null)=>{
     setEditId(t?t.id:null);
     setFormDate(t?t.date:getShiftDate());
     setFp(t?t.pTime:""); setFd(t?t.dTime:"");
     setFpWard(t?t.pWard:""); setFpArea(t?t.pArea:"");
+    setFpLat(t?t.pLat:null); setFpLng(t?t.pLng:null);
     setFdWard(t?t.dWard:""); setFdArea(t?t.dArea:"");
+    setFdLat(t?t.dLat:null); setFdLng(t?t.dLng:null);
     setFare(t?String(t.fare):"");
     setPay(t?t.pay:"GO Pay"); setAcc(t?t.acc:"専用");
     setStat(t?t.stat:"GO"); setSankyu(t?t.sankyu:"通常");
@@ -332,17 +433,20 @@ function App(){
     setEasternName(t?t.easternName||"":"");
     setMemo(t?t.memo||"":"");
   };
-
   const resetKuutenForm=()=>{
-    setKType("A");setKTime("");setKWard("");setKArea("");setKFare("500");setKMemo("");
+    setKType("A");setKTime("");
+    setKWard("");setKArea("");setKLat(null);setKLng(null);
+    setKFare("500");setKMemo("");
   };
 
+  /* ── 保存 ── */
   const saveTrip=async()=>{
     if(!fare)return;
     const trip={
       id:editId||Date.now(), date:formDate, dow:getDow(formDate),
       pTime:fp, dTime:fd, jitsu,
-      pWard:fpWard, pArea:fpArea, dWard:fdWard, dArea:fdArea,
+      pWard:fpWard, pArea:fpArea, pLat:fpLat, pLng:fpLng,
+      dWard:fdWard, dArea:fdArea, dLat:fdLat, dLng:fdLng,
       fare:parseInt(fare.replace(/[^0-9]/g,""))||0,
       pay, acc, stat, sankyu, kotei, yuusen,
       easternName:pay==="イースタン"?easternName:"",
@@ -364,27 +468,28 @@ function App(){
     setKuutens(ks=>[...ks,{
       id:Date.now(), date:getShiftDate(),
       kType, time:kTime, ward:kWard, area:kArea,
+      lat:kLat, lng:kLng,
       fare:parseInt(kFare)||0, memo:kMemo,
     }]);
-    resetKuutenForm();
-    setScreen("log");
+    resetKuutenForm(); setScreen("log");
   };
 
+  /* ── CSV エクスポート ── */
   const doExport=()=>{
-    /* 列名は daily_report02 CSV の実際のカラム名に合わせる */
-    const h="日付,曜日,乗車時間,降車時間,実車時間,乗車地：市区,乗車地：地名,降車地：市区,降車地：地名,料金,アカウント,ステータス,支払,サンキュー,固定客,優先パス,イースタン氏名,メモ";
+    const h="日付,曜日,乗車時間,降車時間,実車時間,乗車地：市区,乗車地：地名,乗車地：緯度,乗車地：経度,降車地：市区,降車地：地名,降車地：緯度,降車地：経度,料金,アカウント,ステータス,支払,サンキュー,固定客,優先パス,イースタン氏名,メモ";
     const rows=trips.map(t=>[
-      t.date, t.dow, t.pTime, t.dTime, t.jitsu,
-      t.pWard, t.pArea, t.dWard, t.dArea,
-      fmtFare(t.fare), t.acc, t.stat, t.pay, t.sankyu, t.kotei,
-      t.yuusen?"優":"", t.easternName||"", t.memo||""
+      t.date,t.dow,t.pTime,t.dTime,t.jitsu,
+      t.pWard,t.pArea,t.pLat||"",t.pLng||"",
+      t.dWard,t.dArea,t.dLat||"",t.dLng||"",
+      fmtFare(t.fare),t.acc,t.stat,t.pay,t.sankyu,t.kotei,
+      t.yuusen?"優":"",t.easternName||"",t.memo||""
     ].join(",")).join("\n");
     let out=h+"\n"+rows;
     if(kuutens.length>0){
-      out+="\n\n--- 空転記録 ---\n日付,種別,時刻,市区,地名,金額,メモ\n";
+      out+="\n\n--- 空転記録 ---\n日付,種別,時刻,市区,地名,緯度,経度,金額,メモ\n";
       out+=kuutens.map(k=>[
-        k.date, k.kType==="A"?"迎車キャンセル":"メーター空転",
-        k.time, k.ward, k.area, fmtFare(k.fare), k.memo||""
+        k.date,k.kType==="A"?"迎車キャンセル":"メーター空転",
+        k.time,k.ward,k.area,k.lat||"",k.lng||"",fmtFare(k.fare),k.memo||""
       ].join(",")).join("\n");
     }
     navigator.clipboard.writeText(out)
@@ -396,9 +501,9 @@ function App(){
   const kuutenTotal=kuutens.reduce((s,k)=>s+k.fare,0);
   const unsyncedCount=FORM_ID?trips.filter(t=>!t.synced).length:0;
 
-  /* ══════════════════════
+  /* ════════════════════════════════
      住所ピッカー画面
-  ══════════════════════ */
+  ════════════════════════════════ */
   if(pickerFor) return (
     <div style={S.wrap}>
       <div style={{...S.hdr,gap:10}}>
@@ -408,6 +513,28 @@ function App(){
         </span>
         <span style={{fontSize:11,color:"var(--txt3)"}}>{locN>0?`${locN.toLocaleString()}件`:locLoad?"読込中…":""}</span>
       </div>
+
+      {/* GPS ボタン */}
+      <div style={{padding:"10px 12px",background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)"}}>
+        <button onClick={handleGPS} disabled={gpsState==="loading"} style={{
+          width:"100%",padding:"11px",borderRadius:"var(--r)",cursor:"pointer",
+          background:gpsState==="ok"?"var(--ok-bg)":gpsState==="err"?"var(--err-bg)":"var(--info-bg)",
+          border:`0.5px solid ${gpsState==="ok"?"var(--ok-bd)":gpsState==="err"?"var(--err-bd)":"var(--info-bd)"}`,
+          color:gpsState==="ok"?"var(--ok)":gpsState==="err"?"var(--err)":"var(--info)",
+          display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+          fontSize:14,fontWeight:500,
+        }}>
+          <i className={`ti ${gpsState==="loading"?"ti-loader-2":"ti-map-pin"}`}
+             style={{fontSize:16,animation:gpsState==="loading"?"spin 1s linear infinite":""}}/>
+          {gpsState==="idle"&&"現在地を使う（GPS）"}
+          {gpsState==="loading"&&"取得中…"}
+          {gpsState==="ok"&&gpsMsg}
+          {gpsState==="err"&&gpsMsg}
+        </button>
+        {gpsState==="err"&&<p style={{fontSize:11,color:"var(--txt3)",marginTop:4,textAlign:"center"}}>下のリストから手動で選択できます</p>}
+      </div>
+
+      {/* 市区チップ */}
       <div style={{background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)",padding:"8px 10px",overflowX:"auto",display:"flex",gap:6,WebkitOverflowScrolling:"touch"}}>
         {wards.map(w=>(
           <button key={w} onClick={()=>{setPickWard(w);setAreaQ("");}} style={{
@@ -418,6 +545,8 @@ function App(){
           }}>{w}</button>
         ))}
       </div>
+
+      {/* 地名リスト */}
       {pickWard&&<>
         <div style={{padding:"8px 12px",background:"var(--bg3)"}}>
           <input value={areaQ} onChange={e=>setAreaQ(e.target.value)}
@@ -431,12 +560,16 @@ function App(){
         </div>
       </>}
       {!pickWard&&<p style={{color:"var(--txt3)",fontSize:13,padding:"16px 14px"}}>上の市区ボタンを選んでください</p>}
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 
-  /* ══════════════════════
-     空転フォーム画面
-  ══════════════════════ */
+  /* ════════════════════════════════
+     空転フォーム
+  ════════════════════════════════ */
   if(screen==="kuuten") return (
     <div style={S.wrap}>
       <div style={{...S.hdr,gap:10}}>
@@ -495,8 +628,7 @@ function App(){
 
         <div style={S.card}>
           <label style={S.lbl}>空転場所</label>
-          <LocBtn ward={kWard} area={kArea} onClick={()=>openPicker("k")}/>
-          <p style={{fontSize:11,color:"var(--txt3)",marginTop:5}}>※ GPS現在地取得は乗車地機能と同時に追加予定</p>
+          <LocBtn ward={kWard} area={kArea} lat={kLat} lng={kLng} onClick={()=>openPicker("k")}/>
         </div>
 
         <div style={S.card}>
@@ -513,9 +645,9 @@ function App(){
     </div>
   );
 
-  /* ══════════════════════
-     乗車記録フォーム画面
-  ══════════════════════ */
+  /* ════════════════════════════════
+     乗車記録フォーム
+  ════════════════════════════════ */
   if(screen==="form") return (
     <div style={S.wrap}>
       <div style={{...S.hdr,gap:10}}>
@@ -540,12 +672,12 @@ function App(){
 
         <div style={S.card}>
           <label style={S.lbl}>乗車地</label>
-          <LocBtn ward={fpWard} area={fpArea} onClick={()=>openPicker("p")}/>
+          <LocBtn ward={fpWard} area={fpArea} lat={fpLat} lng={fpLng} onClick={()=>openPicker("p")}/>
         </div>
 
         <div style={S.card}>
           <label style={S.lbl}>降車地</label>
-          <LocBtn ward={fdWard} area={fdArea} onClick={()=>openPicker("d")}/>
+          <LocBtn ward={fdWard} area={fdArea} lat={fdLat} lng={fdLng} onClick={()=>openPicker("d")}/>
         </div>
 
         <div style={S.card}>
@@ -594,14 +726,9 @@ function App(){
           </div>
         </div>
 
-        {/* ③ 優先パス */}
         <div style={S.card}>
-          <Toggle
-            on={yuusen} onToggle={()=>setYuusen(v=>!v)}
-            label="優先パス"
-            sub="該当する場合のみON（約20件に1回）"
-            color="var(--warn)"
-          />
+          <Toggle on={yuusen} onToggle={()=>setYuusen(v=>!v)}
+            label="優先パス" sub="該当する場合のみON（約20件に1回）" color="var(--warn)"/>
         </div>
 
         <div style={S.card}>
@@ -624,9 +751,9 @@ function App(){
     </div>
   );
 
-  /* ══════════════════════
-     ログ一覧画面
-  ══════════════════════ */
+  /* ════════════════════════════════
+     ログ一覧
+  ════════════════════════════════ */
   return (
     <div style={S.wrap}>
       <div style={S.hdr}>
@@ -640,8 +767,7 @@ function App(){
         <div style={{display:"flex",gap:6}}>
           {(trips.length>0||kuutens.length>0)&&(
             <button onClick={doExport} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 11px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--txt)"}}>
-              <i className="ti ti-copy"/>
-              {copied?"済 ✓":"CSV"}
+              <i className="ti ti-copy"/>{copied?"済 ✓":"CSV"}
             </button>
           )}
           {(trips.length>0||kuutens.length>0)&&(
@@ -684,8 +810,10 @@ function App(){
                 </p>
                 <p style={{fontSize:14,fontWeight:500,margin:"0 0 4px",lineHeight:1.5}}>
                   <span style={{color:"var(--txt2)"}}>{t.pWard||"—"}</span>{t.pArea}
+                  {t.pLat&&<i className="ti ti-map-pin" style={{fontSize:10,color:"var(--ok)",marginLeft:3}}/>}
                   <span style={{color:"var(--txt3)",margin:"0 5px"}}>→</span>
                   <span style={{color:"var(--txt2)"}}>{t.dWard||"—"}</span>{t.dArea}
+                  {t.dLat&&<i className="ti ti-map-pin" style={{fontSize:10,color:"var(--ok)",marginLeft:3}}/>}
                 </p>
                 <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                   <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:PAY_CLR[t.pay]||"var(--txt2)"}}>{t.pay}</span>
@@ -718,6 +846,7 @@ function App(){
                 </p>
                 <p style={{fontSize:14,color:"var(--txt)",margin:"0 0 2px"}}>
                   <span style={{color:"var(--txt2)"}}>{k.ward||"—"}</span>{k.area}
+                  {k.lat&&<i className="ti ti-map-pin" style={{fontSize:10,color:"var(--ok)",marginLeft:3}}/>}
                 </p>
                 {k.memo&&<p style={{fontSize:12,color:"var(--txt3)",margin:"2px 0 0"}}>{k.memo}</p>}
               </div>
