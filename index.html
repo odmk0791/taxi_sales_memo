@@ -12,89 +12,80 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:    #ffffff; --bg2:   #f4f3ef; --bg3:   #eae9e3;
-      --txt:   #1a1a18; --txt2:  #5c5c57; --txt3:  #9c9a92;
-      --bdr:   rgba(0,0,0,0.13); --bdr2: rgba(0,0,0,0.25);
-      --ok:    #1d6b44; --ok-bg: #eaf3de; --ok-bd: rgba(29,107,68,.3);
-      --info:  #185fa5; --info-bg:#e6f1fb; --info-bd:rgba(24,95,165,.3);
-      --warn:  #ba7517; --warn-bg:#faeeda; --warn-bd:rgba(186,117,23,.3);
-      --err:   #a32d2d; --err-bg: #fcebeb; --err-bd:rgba(163,45,45,.3);
-      --sans:  "Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;
-      --mono:  "SF Mono","Courier New",monospace;
-      --r: 8px; --rl: 12px;
+      --bg:#ffffff; --bg2:#f4f3ef; --bg3:#eae9e3;
+      --txt:#1a1a18; --txt2:#5c5c57; --txt3:#9c9a92;
+      --bdr:rgba(0,0,0,0.13); --bdr2:rgba(0,0,0,0.25);
+      --ok:#1d6b44; --ok-bg:#eaf3de; --ok-bd:rgba(29,107,68,.3);
+      --info:#185fa5; --info-bg:#e6f1fb; --info-bd:rgba(24,95,165,.3);
+      --warn:#ba7517; --warn-bg:#faeeda; --warn-bd:rgba(186,117,23,.3);
+      --err:#a32d2d; --err-bg:#fcebeb; --err-bd:rgba(163,45,45,.3);
+      --sans:"Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;
+      --mono:"SF Mono","Courier New",monospace;
+      --r:8px; --rl:12px;
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg:   #1c1c1a; --bg2:  #252523; --bg3:  #141412;
-        --txt:  #e8e6de; --txt2: #9c9a92; --txt3: #6c6a62;
-        --bdr:  rgba(255,255,255,.10); --bdr2: rgba(255,255,255,.20);
-        --ok:   #5dcaa5; --ok-bg:#04342c; --ok-bd:rgba(93,202,165,.3);
-        --info: #85b7eb; --info-bg:#042c53; --info-bd:rgba(133,183,235,.3);
-        --warn: #ef9f27; --warn-bg:#412402; --warn-bd:rgba(239,159,39,.3);
-        --err:  #f09595; --err-bg: #501313; --err-bd:rgba(240,149,149,.3);
+    @media (prefers-color-scheme:dark){
+      :root{
+        --bg:#1c1c1a; --bg2:#252523; --bg3:#141412;
+        --txt:#e8e6de; --txt2:#9c9a92; --txt3:#6c6a62;
+        --bdr:rgba(255,255,255,.10); --bdr2:rgba(255,255,255,.20);
+        --ok:#5dcaa5; --ok-bg:#04342c; --ok-bd:rgba(93,202,165,.3);
+        --info:#85b7eb; --info-bg:#042c53; --info-bd:rgba(133,183,235,.3);
+        --warn:#ef9f27; --warn-bg:#412402; --warn-bd:rgba(239,159,39,.3);
+        --err:#f09595; --err-bg:#501313; --err-bd:rgba(240,149,149,.3);
       }
     }
-    html, body, #root { height: 100%; }
-    body { background: var(--bg3); font-family: var(--sans); color: var(--txt); -webkit-text-size-adjust: 100%; }
-    input, button, select { font-family: var(--sans); font-size: 16px; }
-    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
-    button { -webkit-tap-highlight-color: transparent; }
+    html,body,#root{height:100%;}
+    body{background:var(--bg3);font-family:var(--sans);color:var(--txt);-webkit-text-size-adjust:100%;}
+    input,button,select{font-family:var(--sans);font-size:16px;}
+    input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+    button{-webkit-tap-highlight-color:transparent;}
+    textarea{font-family:var(--sans);font-size:15px;resize:vertical;}
   </style>
 </head>
 <body>
 <div id="root"></div>
-
 <script type="text/babel">
 /* =====================================================
    ★ Googleフォーム設定 ★
-   1. Googleフォームで質問を作成
-   2. フォームプレビューのURLから formId をコピー
-   3. 「フォームを事前入力」でURLのentry.XXX番号を確認
    ===================================================== */
-const FORM_ID = "";  // 例: "1FAIpQLSe..."
+const FORM_ID = "";
 const FIELDS = {
-  date:   "entry.0000000001",
-  dow:    "entry.0000000002",
-  pTime:  "entry.0000000003",
-  dTime:  "entry.0000000004",
-  jitsu:  "entry.0000000005",
-  pWard:  "entry.0000000006",
-  pArea:  "entry.0000000007",
-  dWard:  "entry.0000000008",
-  dArea:  "entry.0000000009",
-  fare:   "entry.0000000010",
-  acc:    "entry.0000000011",
-  stat:   "entry.0000000012",
-  pay:    "entry.0000000013",
-  sankyu: "entry.0000000014",
-  kotei:  "entry.0000000015",
-  kuuten: "entry.0000000016",
+  date:"entry.0000000001", dow:"entry.0000000002",
+  pTime:"entry.0000000003", dTime:"entry.0000000004", jitsu:"entry.0000000005",
+  pWard:"entry.0000000006", pArea:"entry.0000000007",
+  dWard:"entry.0000000008", dArea:"entry.0000000009",
+  fare:"entry.0000000010", acc:"entry.0000000011",
+  stat:"entry.0000000012", pay:"entry.0000000013",
+  sankyu:"entry.0000000014", kotei:"entry.0000000015",
+  easternName:"entry.0000000016", memo:"entry.0000000017",
 };
-/* ===================================================== */
 
 const LOC_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSpOj4QzyarqZtTDM5bld8QDEIzRodRLUwAfF8u42CbgTuGPoKqWrOKtw2Ddrhm0OnONlVnzwc8c1BX/pub?gid=657495537&single=true&output=csv";
-const STORE_KEY = "eimu_trips_v2";
+const STORE_KEY   = "eimu_trips_v2";
+const KUUTEN_KEY  = "eimu_kuutens_v1";
 
 const PAYMENT_OPTS = ["GO Pay","現金","クレジット","IC","QRコード","チケット","福祉券","イースタン","商品券","その他"];
 const ACCOUNT_OPTS = ["専用","通常","プレタク"];
 const STATUS_OPTS  = ["GO","流し","スマ配"];
 const SANKYU_OPTS  = ["通常","サンキュー","プレタク","プレタクP"];
 const KOTEI_OPTS   = ["N","L","S","M"];
-const DOW_JP       = ["日","月","火","水","木","金","土"];
-const PAY_CLR      = {"GO Pay":"var(--warn)","現金":"var(--ok)","クレジット":"var(--info)","IC":"var(--info)","QRコード":"var(--warn)"};
+/* 固定客: N=なし L=Long S=Short M=Middle */
+const KOTEI_LABELS = {N:"なし",L:"Long",S:"Short",M:"Middle"};
+const DOW_JP = ["日","月","火","水","木","金","土"];
+const PAY_CLR = {"GO Pay":"var(--warn)","現金":"var(--ok)","クレジット":"var(--info)","IC":"var(--info)","QRコード":"var(--warn)"};
 
-const { useState, useEffect, useMemo, useCallback, useRef } = React;
+const {useState,useEffect,useMemo} = React;
 
-const pad2    = n => String(n).padStart(2,"0");
-const getNow  = () => { const d=new Date(); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
-const getToday= () => { const d=new Date(); return `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}`; };
-const getDow  = s => { if(!s)return""; const d=new Date(s.replace(/\//g,"-")); return isNaN(d)?"":DOW_JP[d.getDay()]||""; };
+const pad2    = n=>String(n).padStart(2,"0");
+const getNow  = ()=>{const d=new Date();return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;};
+const getToday= ()=>{const d=new Date();return `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}`;};
+const getDow  = s=>{if(!s)return"";const d=new Date(s.replace(/\//g,"-"));return isNaN(d)?"":DOW_JP[d.getDay()]||"";};
 
 function calcJitsu(p,d){
   const toM=t=>{if(!t)return null;const[h,m]=t.split(":").map(Number);return h*60+(m||0);};
   const pm=toM(p),dm=toM(d);
   if(pm==null||dm==null)return"";
-  let diff=dm-pm; if(diff<0)diff+=24*60;
+  let diff=dm-pm;if(diff<0)diff+=24*60;
   return `${Math.floor(diff/60)}:${pad2(diff%60)}`;
 }
 function parseAddr(addr){
@@ -108,7 +99,7 @@ function fmtFare(n){
 }
 
 async function submitToForm(trip){
-  if(!FORM_ID) return false;
+  if(!FORM_ID)return false;
   const url=`https://docs.google.com/forms/d/${FORM_ID}/formResponse`;
   const body=new FormData();
   const map={
@@ -119,37 +110,43 @@ async function submitToForm(trip){
     [FIELDS.fare]:fmtFare(trip.fare),[FIELDS.acc]:trip.acc,
     [FIELDS.stat]:trip.stat,[FIELDS.pay]:trip.pay,
     [FIELDS.sankyu]:trip.sankyu,[FIELDS.kotei]:trip.kotei,
-    [FIELDS.kuuten]:trip.kuuten?"空転":"",
+    [FIELDS.easternName]:trip.easternName||"",
+    [FIELDS.memo]:trip.memo||"",
   };
   Object.entries(map).forEach(([k,v])=>body.append(k,v));
-  try{ await fetch(url,{method:"POST",mode:"no-cors",body}); return true; }
-  catch(e){ return false; }
+  try{await fetch(url,{method:"POST",mode:"no-cors",body});return true;}
+  catch(e){return false;}
 }
 
-/* ── Inline styles ── */
-const S = {
-  wrap:  {maxWidth:480,margin:"0 auto",minHeight:"100vh",background:"var(--bg3)",fontFamily:"var(--sans)"},
-  hdr:   {background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)",padding:"11px 14px",
-          display:"flex",alignItems:"center",justifyContent:"space-between",
-          position:"sticky",top:0,zIndex:10},
-  body:  {padding:"10px 12px 90px"},
-  card:  {background:"var(--bg)",borderRadius:"var(--rl)",border:"0.5px solid var(--bdr)",
-          padding:"11px 13px",marginBottom:8},
-  lbl:   {fontSize:12,color:"var(--txt2)",margin:"0 0 5px",display:"block"},
-  inp:   {width:"100%",padding:"9px 10px",border:"0.5px solid var(--bdr2)",
-          borderRadius:"var(--r)",fontSize:16,background:"var(--bg)",
-          color:"var(--txt)",boxSizing:"border-box",outline:"none"},
-  fab:   {position:"fixed",bottom:20,right:20,width:56,height:56,borderRadius:"50%",
-          background:"var(--bg)",border:"0.5px solid var(--bdr2)",fontSize:28,
-          cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
-          color:"var(--txt)",zIndex:20,boxShadow:"0 2px 12px rgba(0,0,0,.15)"},
+/* ── Styles ── */
+const S={
+  wrap: {maxWidth:480,margin:"0 auto",minHeight:"100vh",background:"var(--bg3)"},
+  hdr:  {background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)",padding:"11px 14px",
+         display:"flex",alignItems:"center",justifyContent:"space-between",
+         position:"sticky",top:0,zIndex:10},
+  body: {padding:"10px 12px 100px"},
+  card: {background:"var(--bg)",borderRadius:"var(--rl)",border:"0.5px solid var(--bdr)",
+         padding:"11px 13px",marginBottom:8},
+  lbl:  {fontSize:12,color:"var(--txt2)",margin:"0 0 5px",display:"block"},
+  inp:  {width:"100%",padding:"9px 10px",border:"0.5px solid var(--bdr2)",
+         borderRadius:"var(--r)",fontSize:16,background:"var(--bg)",
+         color:"var(--txt)",boxSizing:"border-box",outline:"none"},
+  fab:  {position:"fixed",bottom:20,right:20,width:56,height:56,borderRadius:"50%",
+         background:"var(--bg)",border:"0.5px solid var(--bdr2)",fontSize:26,
+         cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+         color:"var(--txt)",zIndex:20,boxShadow:"0 2px 12px rgba(0,0,0,.15)"},
+  fab2: {position:"fixed",bottom:86,right:20,height:38,padding:"0 14px",borderRadius:19,
+         background:"var(--err-bg)",border:"0.5px solid var(--err-bd)",
+         cursor:"pointer",display:"flex",alignItems:"center",gap:5,
+         color:"var(--err)",zIndex:20,fontSize:13,fontWeight:500,
+         boxShadow:"0 2px 8px rgba(0,0,0,.10)"},
 };
 
 function Chip({opts,val,onC,clrMap={}}){
   return <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
     {opts.map(o=>{const cl=clrMap[o]||"var(--txt2)";return(
       <button key={o} onClick={()=>onC(o)} style={{
-        padding:"6px 11px",borderRadius:20,fontSize:13,cursor:"pointer",
+        padding:"7px 12px",borderRadius:20,fontSize:13,cursor:"pointer",
         border:`0.5px solid ${val===o?cl:"var(--bdr)"}`,
         background:val===o?"var(--bg2)":"var(--bg)",
         color:val===o?cl:"var(--txt2)",fontWeight:val===o?500:400,
@@ -166,8 +163,24 @@ function LocBtn({ward,area,onClick}){
     textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"
   }}>
     <span>{ward?`${ward}　${area}`:"市区・地名を選択 →"}</span>
-    <i className="ti ti-chevron-right" aria-hidden="true" style={{fontSize:14,color:"var(--txt3)"}}/>
+    <i className="ti ti-chevron-right" style={{fontSize:14,color:"var(--txt3)"}}/>
   </button>;
+}
+
+function TimeRow({label,val,set,jitsuLabel}){
+  return <div style={{marginBottom:12}}>
+    <p style={{fontSize:11,color:jitsuLabel?"var(--info)":"var(--txt3)",margin:"0 0 4px"}}>
+      {label}{jitsuLabel?` （実車 ${jitsuLabel}）`:""}
+    </p>
+    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+      <input value={val} onChange={e=>set(e.target.value)} placeholder="HH:MM" maxLength={5}
+        style={{...S.inp,width:100,fontSize:22,fontFamily:"var(--mono)",textAlign:"center",padding:"8px 6px",flexShrink:0}}/>
+      <button onClick={()=>set(getNow())} style={{
+        padding:"8px 14px",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",
+        background:"var(--bg2)",color:"var(--txt2)",fontSize:13,cursor:"pointer"
+      }}>今の時刻</button>
+    </div>
+  </div>;
 }
 
 function App(){
@@ -175,16 +188,21 @@ function App(){
   const [locLoad,setLocLoad]=useState(true);
   const [locN,setLocN]=useState(0);
   const [wards,setWards]=useState([]);
+
   const [trips,setTrips]=useState(()=>{
-    try{ return JSON.parse(localStorage.getItem(STORE_KEY)||"[]"); }catch{ return []; }
+    try{return JSON.parse(localStorage.getItem(STORE_KEY)||"[]");}catch{return[];}
   });
-  const [screen,setScreen]=useState("log");
+  const [kuutens,setKuutens]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem(KUUTEN_KEY)||"[]");}catch{return[];}
+  });
+
+  const [screen,setScreen]=useState("log"); // log|form|kuuten
   const [editId,setEditId]=useState(null);
   const [copied,setCopied]=useState(false);
   const [sending,setSending]=useState(false);
-  const [sendResult,setSendResult]=useState(null); // "ok"|"err"|null
+  const [sendResult,setSendResult]=useState(null);
 
-  /* form state */
+  /* ── Trip form state ── */
   const [formDate,setFormDate]=useState(getToday());
   const [fp,setFp]=useState(""); const [fd,setFd]=useState("");
   const [fpWard,setFpWard]=useState(""); const [fpArea,setFpArea]=useState("");
@@ -195,17 +213,25 @@ function App(){
   const [stat,setStat]=useState("GO");
   const [sankyu,setSankyu]=useState("通常");
   const [kotei,setKotei]=useState("N");
-  const [kuuten,setKuuten]=useState(false);
+  const [easternName,setEasternName]=useState("");
+  const [memo,setMemo]=useState("");
 
-  /* picker state */
-  const [picker,setPicker]=useState(null);
+  /* ── Kuuten form state ── */
+  const [kType,setKType]=useState("A");   // A=迎車キャンセル B=メーター空転
+  const [kTime,setKTime]=useState("");
+  const [kWard,setKWard]=useState(""); const [kArea,setKArea]=useState("");
+  const [kFare,setKFare]=useState("500");
+  const [kMemo,setKMemo]=useState("");
+
+  /* ── Location picker state ── */
+  // pickerFor: "p"=乗車地 "d"=降車地 "k"=空転場所
+  const [pickerFor,setPickerFor]=useState(null);
   const [pickWard,setPickWard]=useState("");
   const [areaQ,setAreaQ]=useState("");
 
-  /* persist trips */
-  useEffect(()=>{
-    try{ localStorage.setItem(STORE_KEY,JSON.stringify(trips)); }catch{}
-  },[trips]);
+  /* persist */
+  useEffect(()=>{try{localStorage.setItem(STORE_KEY,JSON.stringify(trips));}catch{}},[trips]);
+  useEffect(()=>{try{localStorage.setItem(KUUTEN_KEY,JSON.stringify(kuutens));}catch{}},[kuutens]);
 
   /* load location DB */
   useEffect(()=>{
@@ -218,12 +244,10 @@ function App(){
           if(!name.trim())return;
           const{ward,area}=parseAddr(name.trim());
           if(!db[ward])db[ward]=new Set();
-          db[ward].add(area); n++;
+          db[ward].add(area);n++;
         });
-        const res={};
-        Object.keys(db).sort().forEach(k=>{res[k]=Array.from(db[k]).sort();});
-        setLocDB(res); setWards(Object.keys(res));
-        setLocN(n); setLocLoad(false);
+        const res={};Object.keys(db).sort().forEach(k=>{res[k]=Array.from(db[k]).sort();});
+        setLocDB(res);setWards(Object.keys(res));setLocN(n);setLocLoad(false);
       },
       error:()=>setLocLoad(false)
     });
@@ -234,39 +258,46 @@ function App(){
     return areaQ?all.filter(a=>a.includes(areaQ)):all;
   },[locDB,pickWard,areaQ]);
 
-  const openPicker=f=>{setPicker(f);setPickWard(f==="p"?fpWard:fdWard);setAreaQ("");};
+  const openPicker=f=>{setPickerFor(f);setPickWard(f==="p"?fpWard:f==="d"?fdWard:kWard);setAreaQ("");};
+
   const pickArea=a=>{
-    if(picker==="p"){setFpWard(pickWard);setFpArea(a);}
-    else{setFdWard(pickWard);setFdArea(a);}
-    setPicker(null);
+    if(pickerFor==="p"){setFpWard(pickWard);setFpArea(a);}
+    else if(pickerFor==="d"){setFdWard(pickWard);setFdArea(a);}
+    else{setKWard(pickWard);setKArea(a);}
+    setPickerFor(null);
   };
 
   const jitsu=useMemo(()=>calcJitsu(fp,fd),[fp,fd]);
 
-  const resetForm=(t=null)=>{
+  const resetTripForm=(t=null)=>{
     setEditId(t?t.id:null);
     setFormDate(t?t.date:getToday());
-    setFp(t?t.pTime:""); setFd(t?t.dTime:"");
-    setFpWard(t?t.pWard:""); setFpArea(t?t.pArea:"");
-    setFdWard(t?t.dWard:""); setFdArea(t?t.dArea:"");
+    setFp(t?t.pTime:"");setFd(t?t.dTime:"");
+    setFpWard(t?t.pWard:"");setFpArea(t?t.pArea:"");
+    setFdWard(t?t.dWard:"");setFdArea(t?t.dArea:"");
     setFare(t?String(t.fare):"");
-    setPay(t?t.pay:"GO Pay"); setAcc(t?t.acc:"専用");
-    setStat(t?t.stat:"GO"); setSankyu(t?t.sankyu:"通常");
-    setKotei(t?t.kotei:"N"); setKuuten(t?t.kuuten:false);
+    setPay(t?t.pay:"GO Pay");setAcc(t?t.acc:"専用");
+    setStat(t?t.stat:"GO");setSankyu(t?t.sankyu:"通常");
+    setKotei(t?t.kotei:"N");
+    setEasternName(t?t.easternName||"":"");
+    setMemo(t?t.memo||"":"");
   };
 
-  const buildTrip=()=>({
-    id:editId||Date.now(), date:formDate, dow:getDow(formDate),
-    pTime:fp, dTime:fd, jitsu,
-    pWard:fpWard, pArea:fpArea, dWard:fdWard, dArea:fdArea,
-    fare:parseInt(fare.replace(/[^0-9]/g,""))||0,
-    pay,acc,stat,sankyu,kotei,kuuten,
-    synced:false,
-  });
+  const resetKuutenForm=()=>{
+    setKType("A");setKTime("");setKWard("");setKArea("");setKFare("500");setKMemo("");
+  };
 
-  const save=async()=>{
+  const saveTrip=async()=>{
     if(!fare)return;
-    const trip=buildTrip();
+    const trip={
+      id:editId||Date.now(),date:formDate,dow:getDow(formDate),
+      pTime:fp,dTime:fd,jitsu,
+      pWard:fpWard,pArea:fpArea,dWard:fdWard,dArea:fdArea,
+      fare:parseInt(fare.replace(/[^0-9]/g,""))||0,
+      pay,acc,stat,sankyu,kotei,
+      easternName:pay==="イースタン"?easternName:"",
+      memo,synced:false,
+    };
     if(FORM_ID){
       setSending(true);
       const ok=await submitToForm(trip);
@@ -279,33 +310,54 @@ function App(){
     setScreen("log");
   };
 
-  const reSync=async(trip)=>{
-    if(!FORM_ID)return;
-    const ok=await submitToForm(trip);
-    setTrips(ts=>ts.map(t=>t.id===trip.id?{...t,synced:ok}:t));
+  const saveKuuten=()=>{
+    const k={
+      id:Date.now(),date:getToday(),
+      kType,time:kTime,
+      ward:kWard,area:kArea,
+      fare:parseInt(kFare)||0,
+      memo:kMemo,
+    };
+    setKuutens(ks=>[...ks,k]);
+    resetKuutenForm();
+    setScreen("log");
   };
 
   const doExport=()=>{
-    const h="日付,曜,乗,降,実,乗車地：市区,乗車地：地名,降車地：市区,降車地：地名,料金,アカウント,ステータス,支払,サンキュー,固,乗.1,降.1,優";
+    const h="日付,曜,乗,降,実,乗車地：市区,乗車地：地名,降車地：市区,降車地：地名,料金,アカウント,ステータス,支払,サンキュー,固定,イースタン氏名,メモ";
     const rows=trips.map(t=>[
       t.date,t.dow,t.pTime,t.dTime,t.jitsu,
       t.pWard,t.pArea,t.dWard,t.dArea,
-      fmtFare(t.fare),t.acc,t.stat,t.pay,t.sankyu,t.kotei,"","",(t.kuuten?"※空転":"")
+      fmtFare(t.fare),t.acc,t.stat,t.pay,t.sankyu,t.kotei,
+      t.easternName||"",t.memo||""
     ].join(",")).join("\n");
-    navigator.clipboard.writeText(h+"\n"+rows)
+    let out=h+"\n"+rows;
+    if(kuutens.length>0){
+      out+="\n\n--- 空転記録 ---\n日付,種別,時刻,市区,地名,金額,メモ\n";
+      out+=kuutens.map(k=>[
+        k.date,k.kType==="A"?"迎車キャンセル":"メーター空転",
+        k.time,k.ward,k.area,fmtFare(k.fare),k.memo||""
+      ].join(",")).join("\n");
+    }
+    navigator.clipboard.writeText(out)
       .then(()=>{setCopied(true);setTimeout(()=>setCopied(false),3000);})
       .catch(()=>alert("コピーに失敗しました"));
   };
 
-  const total=trips.filter(t=>!t.kuuten).reduce((s,t)=>s+t.fare,0);
+  const total=trips.reduce((s,t)=>s+t.fare,0);
+  const kuutenTotal=kuutens.reduce((s,k)=>s+k.fare,0);
   const unsyncedCount=FORM_ID?trips.filter(t=>!t.synced).length:0;
 
-  /* ── Location Picker ── */
-  if(picker) return (
+  /* ══════════════════════════════════
+     SCREEN: Location Picker
+  ══════════════════════════════════ */
+  if(pickerFor) return (
     <div style={S.wrap}>
       <div style={{...S.hdr,gap:10}}>
-        <button onClick={()=>setPicker(null)} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
-        <span style={{fontSize:15,fontWeight:500}}>{picker==="p"?"乗車地":"降車地"}を選択</span>
+        <button onClick={()=>setPickerFor(null)} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+        <span style={{fontSize:15,fontWeight:500}}>
+          {pickerFor==="p"?"乗車地":pickerFor==="d"?"降車地":"空転場所"}を選択
+        </span>
         <span style={{fontSize:11,color:"var(--txt3)"}}>{locN>0?`${locN.toLocaleString()}件`:locLoad?"読込中…":""}</span>
       </div>
       <div style={{background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)",padding:"8px 10px",overflowX:"auto",display:"flex",gap:6,WebkitOverflowScrolling:"touch"}}>
@@ -334,14 +386,101 @@ function App(){
     </div>
   );
 
-  /* ── Form ── */
+  /* ══════════════════════════════════
+     SCREEN: 空転フォーム
+  ══════════════════════════════════ */
+  if(screen==="kuuten") return (
+    <div style={S.wrap}>
+      <div style={{...S.hdr,gap:10}}>
+        <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+        <p style={{fontSize:16,fontWeight:500,margin:0,color:"var(--err)"}}>空転を記録</p>
+      </div>
+      <div style={S.body}>
+
+        {/* 種別 */}
+        <div style={S.card}>
+          <label style={S.lbl}>空転の種別</label>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:4}}>
+            {[["A","迎車キャンセル","予約が入ったがキャンセルに"],["B","メーター空転","連続配車中に客を発見しモードを抜けた"]].map(([t,name,desc])=>(
+              <button key={t} onClick={()=>{setKType(t);setKFare(t==="A"?"500":"");}} style={{
+                padding:"10px 8px",borderRadius:"var(--r)",cursor:"pointer",textAlign:"left",
+                border:`1.5px solid ${kType===t?"var(--err-bd)":"var(--bdr)"}`,
+                background:kType===t?"var(--err-bg)":"var(--bg)",
+              }}>
+                <p style={{fontSize:13,fontWeight:500,color:kType===t?"var(--err)":"var(--txt)",margin:"0 0 2px"}}>{name}</p>
+                <p style={{fontSize:11,color:"var(--txt3)",margin:0,lineHeight:1.4}}>{desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 迎車キャンセルの金額クイック選択 */}
+        {kType==="A"&&(
+          <div style={S.card}>
+            <label style={S.lbl}>空転金額</label>
+            <div style={{display:"flex",gap:8,marginBottom:8}}>
+              {[["500","迎車のみ"],["1000","迎車＋予約"]].map(([v,l])=>(
+                <button key={v} onClick={()=>setKFare(v)} style={{
+                  flex:1,padding:"9px 8px",borderRadius:"var(--r)",cursor:"pointer",
+                  border:`0.5px solid ${kFare===v?"var(--err-bd)":"var(--bdr)"}`,
+                  background:kFare===v?"var(--err-bg)":"var(--bg)",
+                  color:kFare===v?"var(--err)":"var(--txt2)",fontSize:13,
+                }}>
+                  <p style={{fontWeight:500,margin:"0 0 1px"}}>¥{parseInt(v).toLocaleString()}</p>
+                  <p style={{fontSize:11,margin:0}}>{l}</p>
+                </button>
+              ))}
+            </div>
+            <input type="number" inputMode="numeric" value={kFare} onChange={e=>setKFare(e.target.value)}
+              placeholder="金額" style={{...S.inp,fontFamily:"var(--mono)",textAlign:"right"}}/>
+          </div>
+        )}
+        {kType==="B"&&(
+          <div style={S.card}>
+            <label style={S.lbl}>空転金額（円）</label>
+            <input type="number" inputMode="numeric" value={kFare} onChange={e=>setKFare(e.target.value)}
+              placeholder="0" style={{...S.inp,fontSize:24,fontFamily:"var(--mono)",textAlign:"right"}}/>
+          </div>
+        )}
+
+        {/* 時刻 */}
+        <div style={S.card}>
+          <label style={S.lbl}>空転時刻</label>
+          <TimeRow label="" val={kTime} set={setKTime}/>
+        </div>
+
+        {/* 場所 */}
+        <div style={S.card}>
+          <label style={S.lbl}>空転場所</label>
+          <LocBtn ward={kWard} area={kArea} onClick={()=>openPicker("k")}/>
+        </div>
+
+        {/* メモ */}
+        <div style={S.card}>
+          <label style={S.lbl}>メモ</label>
+          <textarea value={kMemo} onChange={e=>setKMemo(e.target.value)} rows={2}
+            placeholder="備考など"
+            style={{...S.inp,padding:"8px 10px",lineHeight:1.5}}/>
+        </div>
+
+        <button onClick={saveKuuten} style={{width:"100%",padding:14,background:"var(--err-bg)",border:"0.5px solid var(--err-bd)",borderRadius:"var(--rl)",fontSize:16,fontWeight:500,cursor:"pointer",color:"var(--err)",marginTop:4}}>
+          空転を記録する
+        </button>
+        <button onClick={()=>setScreen("log")} style={{width:"100%",padding:12,background:"none",border:"none",fontSize:14,cursor:"pointer",color:"var(--txt2)",marginTop:4}}>キャンセル</button>
+      </div>
+    </div>
+  );
+
+  /* ══════════════════════════════════
+     SCREEN: 乗車記録フォーム
+  ══════════════════════════════════ */
   if(screen==="form") return (
     <div style={S.wrap}>
       <div style={{...S.hdr,gap:10}}>
         <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
         <div>
           <p style={{fontSize:16,fontWeight:500,margin:0}}>{editId?"記録を編集":"新規乗車記録"}</p>
-          {sendResult&&<p style={{fontSize:11,color:sendResult==="ok"?"var(--ok)":"var(--err)",margin:0}}>{sendResult==="ok"?"✓ シートに送信しました":"⚠ 送信に失敗しました（記録は保存済）"}</p>}
+          {sendResult&&<p style={{fontSize:11,color:sendResult==="ok"?"var(--ok)":"var(--err)",margin:0}}>{sendResult==="ok"?"✓ 送信しました":"⚠ 送信に失敗（保存済）"}</p>}
         </div>
       </div>
       <div style={S.body}>
@@ -351,22 +490,11 @@ function App(){
           <input value={formDate} onChange={e=>setFormDate(e.target.value)} placeholder="YYYY/MM/DD" style={S.inp}/>
         </div>
 
+        {/* ② 乗降時刻：縦並び */}
         <div style={S.card}>
           <label style={S.lbl}>乗降時刻（深夜は25:xx形式も可）</label>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            {[["乗車",fp,setFp],["降車",fd,setFd]].map(([lbl,val,set],i)=>(
-              <div key={i}>
-                <p style={{fontSize:11,color:i===1&&jitsu?"var(--info)":"var(--txt3)",margin:"0 0 4px"}}>
-                  {lbl}{i===1&&jitsu?` (${jitsu})`:""}
-                </p>
-                <div style={{display:"flex",gap:5}}>
-                  <input value={val} onChange={e=>set(e.target.value)} placeholder="HH:MM" maxLength={5}
-                    style={{...S.inp,flex:1,width:"auto",fontSize:20,fontFamily:"var(--mono)",textAlign:"center",padding:"8px 6px"}}/>
-                  <button onClick={()=>set(getNow())} style={{padding:"0 9px",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg2)",color:"var(--txt2)",fontSize:12,cursor:"pointer"}}>今</button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <TimeRow label="乗車" val={fp} set={setFp}/>
+          <TimeRow label="降車" val={fd} set={setFd} jitsuLabel={jitsu}/>
         </div>
 
         <div style={S.card}>
@@ -385,9 +513,17 @@ function App(){
             style={{...S.inp,fontSize:28,fontFamily:"var(--mono)",textAlign:"right",padding:"10px 12px"}}/>
         </div>
 
+        {/* ③ 支払＋イースタン氏名 */}
         <div style={S.card}>
           <label style={S.lbl}>支払</label>
           <Chip opts={PAYMENT_OPTS} val={pay} onC={setPay} clrMap={PAY_CLR}/>
+          {pay==="イースタン"&&(
+            <div style={{marginTop:10}}>
+              <label style={{...S.lbl,color:"var(--warn)"}}>お客様氏名（イースタン報告用）</label>
+              <input value={easternName} onChange={e=>setEasternName(e.target.value)}
+                placeholder="例：山田 太郎" style={S.inp}/>
+            </div>
+          )}
         </div>
 
         <div style={S.card}>
@@ -400,23 +536,40 @@ function App(){
         <div style={S.card}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
             <div><label style={S.lbl}>サンキュー</label><Chip opts={SANKYU_OPTS} val={sankyu} onC={setSankyu}/></div>
-            <div><label style={S.lbl}>固（車格）</label><Chip opts={KOTEI_OPTS} val={kotei} onC={setKotei}/></div>
-          </div>
-        </div>
-
-        <div style={{...S.card,border:`0.5px solid ${kuuten?"var(--err-bd)":"var(--bdr)"}`}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            {/* ④ 固定（固定客） */}
             <div>
-              <p style={{fontSize:14,fontWeight:kuuten?500:400,color:kuuten?"var(--err)":"var(--txt)",margin:0}}>空転</p>
-              <p style={{fontSize:11,color:"var(--txt3)",margin:"2px 0 0"}}>迎車キャンセル時にON → 料金を無効扱い</p>
+              <label style={S.lbl}>固定（固定客）</label>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
+                {KOTEI_OPTS.map(o=>(
+                  <button key={o} onClick={()=>setKotei(o)} style={{
+                    padding:"6px 10px",borderRadius:20,fontSize:13,cursor:"pointer",
+                    border:`0.5px solid ${kotei===o?"var(--info)":"var(--bdr)"}`,
+                    background:kotei===o?"var(--bg2)":"var(--bg)",
+                    color:kotei===o?"var(--info)":"var(--txt2)",fontWeight:kotei===o?500:400,
+                  }}>
+                    <span>{o}</span>
+                    <span style={{fontSize:10,marginLeft:3,opacity:.7}}>{KOTEI_LABELS[o]}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <button onClick={()=>setKuuten(k=>!k)} style={{width:46,height:26,borderRadius:13,padding:"0 2px",cursor:"pointer",background:kuuten?"var(--err-bg)":"var(--bg2)",border:`0.5px solid ${kuuten?"var(--err-bd)":"var(--bdr2)"}`,display:"flex",alignItems:"center"}}>
-              <div style={{width:20,height:20,borderRadius:"50%",background:kuuten?"var(--err)":"var(--txt3)",marginLeft:kuuten?"auto":0,transition:"margin .2s"}}/>
-            </button>
           </div>
         </div>
 
-        <button onClick={save} disabled={!fare||sending} style={{width:"100%",padding:14,background:"var(--bg)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--rl)",fontSize:16,fontWeight:500,cursor:fare&&!sending?"pointer":"default",color:"var(--txt)",opacity:fare&&!sending?1:0.4,marginTop:4}}>
+        {/* ⑧ メモ */}
+        <div style={S.card}>
+          <label style={S.lbl}>メモ・備忘録</label>
+          <textarea value={memo} onChange={e=>setMemo(e.target.value)} rows={3}
+            placeholder="案件のメモ、気になったこと等"
+            style={{...S.inp,padding:"8px 10px",lineHeight:1.6}}/>
+        </div>
+
+        <button onClick={saveTrip} disabled={!fare||sending} style={{
+          width:"100%",padding:14,background:"var(--bg)",border:"0.5px solid var(--bdr2)",
+          borderRadius:"var(--rl)",fontSize:16,fontWeight:500,
+          cursor:fare&&!sending?"pointer":"default",
+          color:"var(--txt)",opacity:fare&&!sending?1:0.4,marginTop:4
+        }}>
           {sending?"送信中…":(FORM_ID?"✓ 保存してシートへ送信":"✓ 保存する")}
         </button>
         <button onClick={()=>setScreen("log")} style={{width:"100%",padding:12,background:"none",border:"none",fontSize:14,cursor:"pointer",color:"var(--txt2)",marginTop:4}}>キャンセル</button>
@@ -424,45 +577,65 @@ function App(){
     </div>
   );
 
-  /* ── Log ── */
+  /* ══════════════════════════════════
+     SCREEN: ログ一覧
+  ══════════════════════════════════ */
   return (
     <div style={S.wrap}>
       <div style={S.hdr}>
         <div>
           <p style={{fontSize:16,fontWeight:500,margin:0}}>営業メモ</p>
           <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>
-            {trips[0]?.date||getToday()} — {trips.length}件
-            {unsyncedCount>0&&<span style={{color:"var(--warn)",marginLeft:6}}>未送信 {unsyncedCount}件</span>}
+            {trips[0]?.date||getToday()} — 乗車{trips.length}件 / 空転{kuutens.length}件
+            {unsyncedCount>0&&<span style={{color:"var(--warn)",marginLeft:6}}>未送信{unsyncedCount}</span>}
           </p>
         </div>
         <div style={{display:"flex",gap:6}}>
-          {trips.length>0&&<button onClick={doExport} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 11px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--txt)"}}>
-            <i className="ti ti-copy" aria-hidden="true"/>
-            {copied?"済 ✓":"CSV"}
-          </button>}
-          {trips.length>0&&<button onClick={()=>{if(confirm("今日の記録をすべて削除しますか？"))setTrips([]);}} style={{padding:"7px 10px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--err)"}}>
-            <i className="ti ti-trash" aria-hidden="true"/>
-          </button>}
+          {(trips.length>0||kuutens.length>0)&&(
+            <button onClick={doExport} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 11px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--txt)"}}>
+              <i className="ti ti-copy"/>
+              {copied?"済 ✓":"CSV"}
+            </button>
+          )}
+          {(trips.length>0||kuutens.length>0)&&(
+            <button onClick={()=>{if(confirm("今日の全記録を削除しますか？")){setTrips([]);setKuutens([]);}}} style={{padding:"7px 10px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--err)"}}>
+              <i className="ti ti-trash"/>
+            </button>
+          )}
         </div>
       </div>
 
       <div style={S.body}>
-        {trips.length>0&&(
-          <div style={{...S.card,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-            <span style={{fontSize:13,color:"var(--txt2)"}}>本日合計（空転除く）</span>
-            <span style={{fontSize:20,fontWeight:500}}>¥{total.toLocaleString()}</span>
+        {/* 集計バー */}
+        {(trips.length>0||kuutens.length>0)&&(
+          <div style={{...S.card,marginBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:kuutens.length>0?6:0}}>
+              <span style={{fontSize:13,color:"var(--txt2)"}}>乗車合計</span>
+              <span style={{fontSize:20,fontWeight:500}}>¥{total.toLocaleString()}</span>
+            </div>
+            {kuutens.length>0&&(
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:6,borderTop:"0.5px solid var(--bdr)"}}>
+                <span style={{fontSize:12,color:"var(--err)"}}>空転合計（控除）</span>
+                <span style={{fontSize:15,fontWeight:500,color:"var(--err)"}}>−¥{kuutenTotal.toLocaleString()}</span>
+              </div>
+            )}
           </div>
         )}
-        {trips.length===0&&<div style={{textAlign:"center",color:"var(--txt3)",fontSize:14,padding:"60px 20px",lineHeight:2.4}}>まだ記録がありません<br/>右下の ＋ から追加</div>}
 
+        {trips.length===0&&kuutens.length===0&&(
+          <div style={{textAlign:"center",color:"var(--txt3)",fontSize:14,padding:"60px 20px",lineHeight:2.4}}>
+            まだ記録がありません<br/>右下の ＋ から乗車記録を追加
+          </div>
+        )}
+
+        {/* 乗車記録リスト */}
         {trips.map((t,i)=>(
-          <div key={t.id} style={{...S.card,border:`0.5px solid ${t.kuuten?"var(--err-bd)":"var(--bdr)"}`,opacity:t.kuuten?.7:1}}>
+          <div key={t.id} style={{...S.card}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
               <div style={{flex:1,minWidth:0}}>
-                <p style={{fontSize:11,color:t.kuuten?"var(--err)":"var(--txt3)",margin:"0 0 2px"}}>
+                <p style={{fontSize:11,color:"var(--txt3)",margin:"0 0 2px"}}>
                   #{i+1}　{t.pTime}{t.dTime?` → ${t.dTime}`:""}{t.jitsu?` (${t.jitsu})`:""}
-                  {t.kuuten&&<span style={{marginLeft:6,fontWeight:500}}>空転</span>}
-                  {FORM_ID&&<span style={{marginLeft:6,color:t.synced?"var(--ok)":"var(--warn)"}}>{t.synced?"● 送信済":"○ 未送信"}</span>}
+                  {FORM_ID&&<span style={{marginLeft:6,color:t.synced?"var(--ok)":"var(--warn)"}}>{t.synced?"●":"○"}</span>}
                 </p>
                 <p style={{fontSize:14,fontWeight:500,margin:"0 0 4px",lineHeight:1.5}}>
                   <span style={{color:"var(--txt2)"}}>{t.pWard||"—"}</span>{t.pArea}
@@ -471,32 +644,61 @@ function App(){
                 </p>
                 <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
                   <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:PAY_CLR[t.pay]||"var(--txt2)"}}>{t.pay}</span>
+                  {t.pay==="イースタン"&&t.easternName&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--warn)"}}>{t.easternName}</span>}
                   {t.stat!=="GO"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--txt3)"}}>{t.stat}</span>}
                   {t.acc!=="専用"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--txt3)"}}>{t.acc}</span>}
                   {t.sankyu!=="通常"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--warn)"}}>{t.sankyu}</span>}
+                  {t.kotei!=="N"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--info)"}}>{t.kotei}({KOTEI_LABELS[t.kotei]})</span>}
                 </div>
+                {t.memo&&<p style={{fontSize:12,color:"var(--txt3)",margin:"4px 0 0",lineHeight:1.4}}>{t.memo}</p>}
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
-                <p style={{fontSize:18,fontWeight:500,color:t.kuuten?"var(--err)":"var(--txt)",margin:"0 0 4px"}}>{t.kuuten&&<span style={{fontSize:14}}>-</span>}¥{t.fare.toLocaleString()}</p>
+                <p style={{fontSize:18,fontWeight:500,margin:"0 0 4px"}}>¥{t.fare.toLocaleString()}</p>
                 <div style={{display:"flex",gap:0,justifyContent:"flex-end"}}>
-                  {FORM_ID&&!t.synced&&<button onClick={()=>reSync(t)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--warn)",fontSize:14,padding:"3px 5px"}} title="再送信"><i className="ti ti-refresh" aria-hidden="true"/></button>}
-                  <button onClick={()=>{resetForm(t);setScreen("form");}} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-edit" aria-hidden="true"/></button>
-                  <button onClick={()=>setTrips(ts=>ts.filter(x=>x.id!==t.id))} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-trash" aria-hidden="true"/></button>
+                  <button onClick={()=>{resetTripForm(t);setScreen("form");}} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-edit"/></button>
+                  <button onClick={()=>setTrips(ts=>ts.filter(x=>x.id!==t.id))} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-trash"/></button>
                 </div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* 空転記録リスト */}
+        {kuutens.map((k,i)=>(
+          <div key={k.id} style={{...S.card,border:"0.5px solid var(--err-bd)",background:"var(--err-bg)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+              <div style={{flex:1}}>
+                <p style={{fontSize:11,color:"var(--err)",margin:"0 0 2px",fontWeight:500}}>
+                  空転 {k.kType==="A"?"【迎車キャンセル】":"【メーター空転】"}　{k.time}
+                </p>
+                <p style={{fontSize:14,color:"var(--txt)",margin:"0 0 2px"}}>
+                  <span style={{color:"var(--txt2)"}}>{k.ward||"—"}</span>{k.area}
+                </p>
+                {k.memo&&<p style={{fontSize:12,color:"var(--txt3)",margin:"2px 0 0"}}>{k.memo}</p>}
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <p style={{fontSize:18,fontWeight:500,color:"var(--err)",margin:"0 0 4px"}}>−¥{k.fare.toLocaleString()}</p>
+                <button onClick={()=>setKuutens(ks=>ks.filter(x=>x.id!==k.id))} style={{background:"none",border:"none",cursor:"pointer",color:"var(--err)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-trash"/></button>
               </div>
             </div>
           </div>
         ))}
       </div>
 
-      <button onClick={()=>{resetForm();setScreen("form");}} style={S.fab}>
-        <i className="ti ti-plus" aria-hidden="true"/>
+      {/* FAB: 空転 */}
+      <button onClick={()=>{resetKuutenForm();setScreen("kuuten");}} style={S.fab2}>
+        <i className="ti ti-alert-triangle" style={{fontSize:14}}/>
+        空転を記録
+      </button>
+      {/* FAB: 乗車記録 */}
+      <button onClick={()=>{resetTripForm();setScreen("form");}} style={S.fab}>
+        <i className="ti ti-plus"/>
       </button>
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App, null));
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App,null));
 </script>
 </body>
 </html>
