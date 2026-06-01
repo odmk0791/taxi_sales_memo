@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>営業メモ</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.10/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:    #ffffff; --bg2:   #f4f3ef; --bg3:   #eae9e3;
+      --txt:   #1a1a18; --txt2:  #5c5c57; --txt3:  #9c9a92;
+      --bdr:   rgba(0,0,0,0.13); --bdr2: rgba(0,0,0,0.25);
+      --ok:    #1d6b44; --ok-bg: #eaf3de; --ok-bd: rgba(29,107,68,.3);
+      --info:  #185fa5; --info-bg:#e6f1fb; --info-bd:rgba(24,95,165,.3);
+      --warn:  #ba7517; --warn-bg:#faeeda; --warn-bd:rgba(186,117,23,.3);
+      --err:   #a32d2d; --err-bg: #fcebeb; --err-bd:rgba(163,45,45,.3);
+      --sans:  "Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;
+      --mono:  "SF Mono","Courier New",monospace;
+      --r: 8px; --rl: 12px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg:   #1c1c1a; --bg2:  #252523; --bg3:  #141412;
+        --txt:  #e8e6de; --txt2: #9c9a92; --txt3: #6c6a62;
+        --bdr:  rgba(255,255,255,.10); --bdr2: rgba(255,255,255,.20);
+        --ok:   #5dcaa5; --ok-bg:#04342c; --ok-bd:rgba(93,202,165,.3);
+        --info: #85b7eb; --info-bg:#042c53; --info-bd:rgba(133,183,235,.3);
+        --warn: #ef9f27; --warn-bg:#412402; --warn-bd:rgba(239,159,39,.3);
+        --err:  #f09595; --err-bg: #501313; --err-bd:rgba(240,149,149,.3);
+      }
+    }
+    html, body, #root { height: 100%; }
+    body { background: var(--bg3); font-family: var(--sans); color: var(--txt); -webkit-text-size-adjust: 100%; }
+    input, button, select { font-family: var(--sans); font-size: 16px; }
+    input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    button { -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+/* =====================================================
+   ★ Googleフォーム設定 ★
+   1. Googleフォームで質問を作成
+   2. フォームプレビューのURLから formId をコピー
+   3. 「フォームを事前入力」でURLのentry.XXX番号を確認
+   ===================================================== */
+const FORM_ID = "";  // 例: "1FAIpQLSe..."
+const FIELDS = {
+  date:   "entry.0000000001",
+  dow:    "entry.0000000002",
+  pTime:  "entry.0000000003",
+  dTime:  "entry.0000000004",
+  jitsu:  "entry.0000000005",
+  pWard:  "entry.0000000006",
+  pArea:  "entry.0000000007",
+  dWard:  "entry.0000000008",
+  dArea:  "entry.0000000009",
+  fare:   "entry.0000000010",
+  acc:    "entry.0000000011",
+  stat:   "entry.0000000012",
+  pay:    "entry.0000000013",
+  sankyu: "entry.0000000014",
+  kotei:  "entry.0000000015",
+  kuuten: "entry.0000000016",
+};
+/* ===================================================== */
+
+const LOC_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSpOj4QzyarqZtTDM5bld8QDEIzRodRLUwAfF8u42CbgTuGPoKqWrOKtw2Ddrhm0OnONlVnzwc8c1BX/pub?gid=657495537&single=true&output=csv";
+const STORE_KEY = "eimu_trips_v2";
+
+const PAYMENT_OPTS = ["GO Pay","現金","クレジット","IC","QRコード","チケット","福祉券","イースタン","商品券","その他"];
+const ACCOUNT_OPTS = ["専用","通常","プレタク"];
+const STATUS_OPTS  = ["GO","流し","スマ配"];
+const SANKYU_OPTS  = ["通常","サンキュー","プレタク","プレタクP"];
+const KOTEI_OPTS   = ["N","L","S","M"];
+const DOW_JP       = ["日","月","火","水","木","金","土"];
+const PAY_CLR      = {"GO Pay":"var(--warn)","現金":"var(--ok)","クレジット":"var(--info)","IC":"var(--info)","QRコード":"var(--warn)"};
+
+const { useState, useEffect, useMemo, useCallback, useRef } = React;
+
+const pad2    = n => String(n).padStart(2,"0");
+const getNow  = () => { const d=new Date(); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+const getToday= () => { const d=new Date(); return `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}`; };
+const getDow  = s => { if(!s)return""; const d=new Date(s.replace(/\//g,"-")); return isNaN(d)?"":DOW_JP[d.getDay()]||""; };
+
+function calcJitsu(p,d){
+  const toM=t=>{if(!t)return null;const[h,m]=t.split(":").map(Number);return h*60+(m||0);};
+  const pm=toM(p),dm=toM(d);
+  if(pm==null||dm==null)return"";
+  let diff=dm-pm; if(diff<0)diff+=24*60;
+  return `${Math.floor(diff/60)}:${pad2(diff%60)}`;
+}
+function parseAddr(addr){
+  if(!addr)return{ward:"その他",area:""};
+  const m=addr.match(/^(.+?[区市郡])(.+)$/);
+  return m?{ward:m[1],area:m[2]}:{ward:"その他",area:addr};
+}
+function fmtFare(n){
+  const v=parseInt(String(n).replace(/[^0-9]/g,""));
+  return isNaN(v)?"":"¥"+v.toLocaleString();
+}
+
+async function submitToForm(trip){
+  if(!FORM_ID) return false;
+  const url=`https://docs.google.com/forms/d/${FORM_ID}/formResponse`;
+  const body=new FormData();
+  const map={
+    [FIELDS.date]:trip.date,[FIELDS.dow]:trip.dow,
+    [FIELDS.pTime]:trip.pTime,[FIELDS.dTime]:trip.dTime,[FIELDS.jitsu]:trip.jitsu,
+    [FIELDS.pWard]:trip.pWard,[FIELDS.pArea]:trip.pArea,
+    [FIELDS.dWard]:trip.dWard,[FIELDS.dArea]:trip.dArea,
+    [FIELDS.fare]:fmtFare(trip.fare),[FIELDS.acc]:trip.acc,
+    [FIELDS.stat]:trip.stat,[FIELDS.pay]:trip.pay,
+    [FIELDS.sankyu]:trip.sankyu,[FIELDS.kotei]:trip.kotei,
+    [FIELDS.kuuten]:trip.kuuten?"空転":"",
+  };
+  Object.entries(map).forEach(([k,v])=>body.append(k,v));
+  try{ await fetch(url,{method:"POST",mode:"no-cors",body}); return true; }
+  catch(e){ return false; }
+}
+
+/* ── Inline styles ── */
+const S = {
+  wrap:  {maxWidth:480,margin:"0 auto",minHeight:"100vh",background:"var(--bg3)",fontFamily:"var(--sans)"},
+  hdr:   {background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)",padding:"11px 14px",
+          display:"flex",alignItems:"center",justifyContent:"space-between",
+          position:"sticky",top:0,zIndex:10},
+  body:  {padding:"10px 12px 90px"},
+  card:  {background:"var(--bg)",borderRadius:"var(--rl)",border:"0.5px solid var(--bdr)",
+          padding:"11px 13px",marginBottom:8},
+  lbl:   {fontSize:12,color:"var(--txt2)",margin:"0 0 5px",display:"block"},
+  inp:   {width:"100%",padding:"9px 10px",border:"0.5px solid var(--bdr2)",
+          borderRadius:"var(--r)",fontSize:16,background:"var(--bg)",
+          color:"var(--txt)",boxSizing:"border-box",outline:"none"},
+  fab:   {position:"fixed",bottom:20,right:20,width:56,height:56,borderRadius:"50%",
+          background:"var(--bg)",border:"0.5px solid var(--bdr2)",fontSize:28,
+          cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+          color:"var(--txt)",zIndex:20,boxShadow:"0 2px 12px rgba(0,0,0,.15)"},
+};
+
+function Chip({opts,val,onC,clrMap={}}){
+  return <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
+    {opts.map(o=>{const cl=clrMap[o]||"var(--txt2)";return(
+      <button key={o} onClick={()=>onC(o)} style={{
+        padding:"6px 11px",borderRadius:20,fontSize:13,cursor:"pointer",
+        border:`0.5px solid ${val===o?cl:"var(--bdr)"}`,
+        background:val===o?"var(--bg2)":"var(--bg)",
+        color:val===o?cl:"var(--txt2)",fontWeight:val===o?500:400,
+      }}>{o}</button>
+    );})}
+  </div>;
+}
+
+function LocBtn({ward,area,onClick}){
+  return <button onClick={onClick} style={{
+    width:"100%",padding:"10px 12px",border:"0.5px solid var(--bdr2)",
+    borderRadius:"var(--r)",background:"var(--bg2)",
+    color:ward?"var(--txt)":"var(--txt3)",fontSize:14,cursor:"pointer",
+    textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"
+  }}>
+    <span>{ward?`${ward}　${area}`:"市区・地名を選択 →"}</span>
+    <i className="ti ti-chevron-right" aria-hidden="true" style={{fontSize:14,color:"var(--txt3)"}}/>
+  </button>;
+}
+
+function App(){
+  const [locDB,setLocDB]=useState({});
+  const [locLoad,setLocLoad]=useState(true);
+  const [locN,setLocN]=useState(0);
+  const [wards,setWards]=useState([]);
+  const [trips,setTrips]=useState(()=>{
+    try{ return JSON.parse(localStorage.getItem(STORE_KEY)||"[]"); }catch{ return []; }
+  });
+  const [screen,setScreen]=useState("log");
+  const [editId,setEditId]=useState(null);
+  const [copied,setCopied]=useState(false);
+  const [sending,setSending]=useState(false);
+  const [sendResult,setSendResult]=useState(null); // "ok"|"err"|null
+
+  /* form state */
+  const [formDate,setFormDate]=useState(getToday());
+  const [fp,setFp]=useState(""); const [fd,setFd]=useState("");
+  const [fpWard,setFpWard]=useState(""); const [fpArea,setFpArea]=useState("");
+  const [fdWard,setFdWard]=useState(""); const [fdArea,setFdArea]=useState("");
+  const [fare,setFare]=useState("");
+  const [pay,setPay]=useState("GO Pay");
+  const [acc,setAcc]=useState("専用");
+  const [stat,setStat]=useState("GO");
+  const [sankyu,setSankyu]=useState("通常");
+  const [kotei,setKotei]=useState("N");
+  const [kuuten,setKuuten]=useState(false);
+
+  /* picker state */
+  const [picker,setPicker]=useState(null);
+  const [pickWard,setPickWard]=useState("");
+  const [areaQ,setAreaQ]=useState("");
+
+  /* persist trips */
+  useEffect(()=>{
+    try{ localStorage.setItem(STORE_KEY,JSON.stringify(trips)); }catch{}
+  },[trips]);
+
+  /* load location DB */
+  useEffect(()=>{
+    Papa.parse(LOC_CSV,{
+      download:true,header:true,skipEmptyLines:true,
+      complete:({data})=>{
+        const db={};let n=0;
+        data.forEach(row=>{
+          const name=row["住所名"]||row["名称"]||row["場所名"]||Object.values(row).find(v=>v&&isNaN(v))||"";
+          if(!name.trim())return;
+          const{ward,area}=parseAddr(name.trim());
+          if(!db[ward])db[ward]=new Set();
+          db[ward].add(area); n++;
+        });
+        const res={};
+        Object.keys(db).sort().forEach(k=>{res[k]=Array.from(db[k]).sort();});
+        setLocDB(res); setWards(Object.keys(res));
+        setLocN(n); setLocLoad(false);
+      },
+      error:()=>setLocLoad(false)
+    });
+  },[]);
+
+  const pickerAreas=useMemo(()=>{
+    const all=locDB[pickWard]||[];
+    return areaQ?all.filter(a=>a.includes(areaQ)):all;
+  },[locDB,pickWard,areaQ]);
+
+  const openPicker=f=>{setPicker(f);setPickWard(f==="p"?fpWard:fdWard);setAreaQ("");};
+  const pickArea=a=>{
+    if(picker==="p"){setFpWard(pickWard);setFpArea(a);}
+    else{setFdWard(pickWard);setFdArea(a);}
+    setPicker(null);
+  };
+
+  const jitsu=useMemo(()=>calcJitsu(fp,fd),[fp,fd]);
+
+  const resetForm=(t=null)=>{
+    setEditId(t?t.id:null);
+    setFormDate(t?t.date:getToday());
+    setFp(t?t.pTime:""); setFd(t?t.dTime:"");
+    setFpWard(t?t.pWard:""); setFpArea(t?t.pArea:"");
+    setFdWard(t?t.dWard:""); setFdArea(t?t.dArea:"");
+    setFare(t?String(t.fare):"");
+    setPay(t?t.pay:"GO Pay"); setAcc(t?t.acc:"専用");
+    setStat(t?t.stat:"GO"); setSankyu(t?t.sankyu:"通常");
+    setKotei(t?t.kotei:"N"); setKuuten(t?t.kuuten:false);
+  };
+
+  const buildTrip=()=>({
+    id:editId||Date.now(), date:formDate, dow:getDow(formDate),
+    pTime:fp, dTime:fd, jitsu,
+    pWard:fpWard, pArea:fpArea, dWard:fdWard, dArea:fdArea,
+    fare:parseInt(fare.replace(/[^0-9]/g,""))||0,
+    pay,acc,stat,sankyu,kotei,kuuten,
+    synced:false,
+  });
+
+  const save=async()=>{
+    if(!fare)return;
+    const trip=buildTrip();
+    if(FORM_ID){
+      setSending(true);
+      const ok=await submitToForm(trip);
+      trip.synced=ok;
+      setSendResult(ok?"ok":"err");
+      setTimeout(()=>setSendResult(null),3000);
+      setSending(false);
+    }
+    setTrips(ts=>editId?ts.map(t=>t.id===editId?trip:t):[...ts,trip]);
+    setScreen("log");
+  };
+
+  const reSync=async(trip)=>{
+    if(!FORM_ID)return;
+    const ok=await submitToForm(trip);
+    setTrips(ts=>ts.map(t=>t.id===trip.id?{...t,synced:ok}:t));
+  };
+
+  const doExport=()=>{
+    const h="日付,曜,乗,降,実,乗車地：市区,乗車地：地名,降車地：市区,降車地：地名,料金,アカウント,ステータス,支払,サンキュー,固,乗.1,降.1,優";
+    const rows=trips.map(t=>[
+      t.date,t.dow,t.pTime,t.dTime,t.jitsu,
+      t.pWard,t.pArea,t.dWard,t.dArea,
+      fmtFare(t.fare),t.acc,t.stat,t.pay,t.sankyu,t.kotei,"","",(t.kuuten?"※空転":"")
+    ].join(",")).join("\n");
+    navigator.clipboard.writeText(h+"\n"+rows)
+      .then(()=>{setCopied(true);setTimeout(()=>setCopied(false),3000);})
+      .catch(()=>alert("コピーに失敗しました"));
+  };
+
+  const total=trips.filter(t=>!t.kuuten).reduce((s,t)=>s+t.fare,0);
+  const unsyncedCount=FORM_ID?trips.filter(t=>!t.synced).length:0;
+
+  /* ── Location Picker ── */
+  if(picker) return (
+    <div style={S.wrap}>
+      <div style={{...S.hdr,gap:10}}>
+        <button onClick={()=>setPicker(null)} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+        <span style={{fontSize:15,fontWeight:500}}>{picker==="p"?"乗車地":"降車地"}を選択</span>
+        <span style={{fontSize:11,color:"var(--txt3)"}}>{locN>0?`${locN.toLocaleString()}件`:locLoad?"読込中…":""}</span>
+      </div>
+      <div style={{background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)",padding:"8px 10px",overflowX:"auto",display:"flex",gap:6,WebkitOverflowScrolling:"touch"}}>
+        {wards.map(w=>(
+          <button key={w} onClick={()=>{setPickWard(w);setAreaQ("");}} style={{
+            whiteSpace:"nowrap",padding:"6px 13px",borderRadius:20,cursor:"pointer",
+            border:`0.5px solid ${pickWard===w?"var(--info)":"var(--bdr)"}`,
+            background:pickWard===w?"var(--bg2)":"var(--bg)",
+            color:pickWard===w?"var(--info)":"var(--txt2)",fontSize:13,flexShrink:0,
+          }}>{w}</button>
+        ))}
+      </div>
+      {pickWard&&<>
+        <div style={{padding:"8px 12px",background:"var(--bg3)"}}>
+          <input value={areaQ} onChange={e=>setAreaQ(e.target.value)}
+            placeholder={`${pickWard}内を絞り込み…`} style={S.inp}/>
+        </div>
+        <div style={{padding:"0 14px 80px"}}>
+          {pickerAreas.length===0&&<p style={{color:"var(--txt3)",fontSize:13,padding:"16px 0"}}>{locLoad?"読込中…":"該当なし"}</p>}
+          {pickerAreas.map((a,i)=>(
+            <div key={i} onClick={()=>pickArea(a)} style={{padding:"12px 2px",borderBottom:"0.5px solid var(--bdr)",fontSize:15,cursor:"pointer",userSelect:"none"}}>{a}</div>
+          ))}
+        </div>
+      </>}
+      {!pickWard&&<p style={{color:"var(--txt3)",fontSize:13,padding:"16px 14px"}}>上の市区ボタンを選んでください</p>}
+    </div>
+  );
+
+  /* ── Form ── */
+  if(screen==="form") return (
+    <div style={S.wrap}>
+      <div style={{...S.hdr,gap:10}}>
+        <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+        <div>
+          <p style={{fontSize:16,fontWeight:500,margin:0}}>{editId?"記録を編集":"新規乗車記録"}</p>
+          {sendResult&&<p style={{fontSize:11,color:sendResult==="ok"?"var(--ok)":"var(--err)",margin:0}}>{sendResult==="ok"?"✓ シートに送信しました":"⚠ 送信に失敗しました（記録は保存済）"}</p>}
+        </div>
+      </div>
+      <div style={S.body}>
+
+        <div style={S.card}>
+          <label style={S.lbl}>日付</label>
+          <input value={formDate} onChange={e=>setFormDate(e.target.value)} placeholder="YYYY/MM/DD" style={S.inp}/>
+        </div>
+
+        <div style={S.card}>
+          <label style={S.lbl}>乗降時刻（深夜は25:xx形式も可）</label>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            {[["乗車",fp,setFp],["降車",fd,setFd]].map(([lbl,val,set],i)=>(
+              <div key={i}>
+                <p style={{fontSize:11,color:i===1&&jitsu?"var(--info)":"var(--txt3)",margin:"0 0 4px"}}>
+                  {lbl}{i===1&&jitsu?` (${jitsu})`:""}
+                </p>
+                <div style={{display:"flex",gap:5}}>
+                  <input value={val} onChange={e=>set(e.target.value)} placeholder="HH:MM" maxLength={5}
+                    style={{...S.inp,flex:1,width:"auto",fontSize:20,fontFamily:"var(--mono)",textAlign:"center",padding:"8px 6px"}}/>
+                  <button onClick={()=>set(getNow())} style={{padding:"0 9px",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",background:"var(--bg2)",color:"var(--txt2)",fontSize:12,cursor:"pointer"}}>今</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={S.card}>
+          <label style={S.lbl}>乗車地</label>
+          <LocBtn ward={fpWard} area={fpArea} onClick={()=>openPicker("p")}/>
+        </div>
+
+        <div style={S.card}>
+          <label style={S.lbl}>降車地</label>
+          <LocBtn ward={fdWard} area={fdArea} onClick={()=>openPicker("d")}/>
+        </div>
+
+        <div style={S.card}>
+          <label style={S.lbl}>料金（円）</label>
+          <input type="number" inputMode="numeric" value={fare} onChange={e=>setFare(e.target.value)} placeholder="0"
+            style={{...S.inp,fontSize:28,fontFamily:"var(--mono)",textAlign:"right",padding:"10px 12px"}}/>
+        </div>
+
+        <div style={S.card}>
+          <label style={S.lbl}>支払</label>
+          <Chip opts={PAYMENT_OPTS} val={pay} onC={setPay} clrMap={PAY_CLR}/>
+        </div>
+
+        <div style={S.card}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div><label style={S.lbl}>アカウント</label><Chip opts={ACCOUNT_OPTS} val={acc} onC={setAcc}/></div>
+            <div><label style={S.lbl}>ステータス</label><Chip opts={STATUS_OPTS} val={stat} onC={setStat}/></div>
+          </div>
+        </div>
+
+        <div style={S.card}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div><label style={S.lbl}>サンキュー</label><Chip opts={SANKYU_OPTS} val={sankyu} onC={setSankyu}/></div>
+            <div><label style={S.lbl}>固（車格）</label><Chip opts={KOTEI_OPTS} val={kotei} onC={setKotei}/></div>
+          </div>
+        </div>
+
+        <div style={{...S.card,border:`0.5px solid ${kuuten?"var(--err-bd)":"var(--bdr)"}`}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <div>
+              <p style={{fontSize:14,fontWeight:kuuten?500:400,color:kuuten?"var(--err)":"var(--txt)",margin:0}}>空転</p>
+              <p style={{fontSize:11,color:"var(--txt3)",margin:"2px 0 0"}}>迎車キャンセル時にON → 料金を無効扱い</p>
+            </div>
+            <button onClick={()=>setKuuten(k=>!k)} style={{width:46,height:26,borderRadius:13,padding:"0 2px",cursor:"pointer",background:kuuten?"var(--err-bg)":"var(--bg2)",border:`0.5px solid ${kuuten?"var(--err-bd)":"var(--bdr2)"}`,display:"flex",alignItems:"center"}}>
+              <div style={{width:20,height:20,borderRadius:"50%",background:kuuten?"var(--err)":"var(--txt3)",marginLeft:kuuten?"auto":0,transition:"margin .2s"}}/>
+            </button>
+          </div>
+        </div>
+
+        <button onClick={save} disabled={!fare||sending} style={{width:"100%",padding:14,background:"var(--bg)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--rl)",fontSize:16,fontWeight:500,cursor:fare&&!sending?"pointer":"default",color:"var(--txt)",opacity:fare&&!sending?1:0.4,marginTop:4}}>
+          {sending?"送信中…":(FORM_ID?"✓ 保存してシートへ送信":"✓ 保存する")}
+        </button>
+        <button onClick={()=>setScreen("log")} style={{width:"100%",padding:12,background:"none",border:"none",fontSize:14,cursor:"pointer",color:"var(--txt2)",marginTop:4}}>キャンセル</button>
+      </div>
+    </div>
+  );
+
+  /* ── Log ── */
+  return (
+    <div style={S.wrap}>
+      <div style={S.hdr}>
+        <div>
+          <p style={{fontSize:16,fontWeight:500,margin:0}}>営業メモ</p>
+          <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>
+            {trips[0]?.date||getToday()} — {trips.length}件
+            {unsyncedCount>0&&<span style={{color:"var(--warn)",marginLeft:6}}>未送信 {unsyncedCount}件</span>}
+          </p>
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          {trips.length>0&&<button onClick={doExport} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 11px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--txt)"}}>
+            <i className="ti ti-copy" aria-hidden="true"/>
+            {copied?"済 ✓":"CSV"}
+          </button>}
+          {trips.length>0&&<button onClick={()=>{if(confirm("今日の記録をすべて削除しますか？"))setTrips([]);}} style={{padding:"7px 10px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--err)"}}>
+            <i className="ti ti-trash" aria-hidden="true"/>
+          </button>}
+        </div>
+      </div>
+
+      <div style={S.body}>
+        {trips.length>0&&(
+          <div style={{...S.card,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <span style={{fontSize:13,color:"var(--txt2)"}}>本日合計（空転除く）</span>
+            <span style={{fontSize:20,fontWeight:500}}>¥{total.toLocaleString()}</span>
+          </div>
+        )}
+        {trips.length===0&&<div style={{textAlign:"center",color:"var(--txt3)",fontSize:14,padding:"60px 20px",lineHeight:2.4}}>まだ記録がありません<br/>右下の ＋ から追加</div>}
+
+        {trips.map((t,i)=>(
+          <div key={t.id} style={{...S.card,border:`0.5px solid ${t.kuuten?"var(--err-bd)":"var(--bdr)"}`,opacity:t.kuuten?.7:1}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{fontSize:11,color:t.kuuten?"var(--err)":"var(--txt3)",margin:"0 0 2px"}}>
+                  #{i+1}　{t.pTime}{t.dTime?` → ${t.dTime}`:""}{t.jitsu?` (${t.jitsu})`:""}
+                  {t.kuuten&&<span style={{marginLeft:6,fontWeight:500}}>空転</span>}
+                  {FORM_ID&&<span style={{marginLeft:6,color:t.synced?"var(--ok)":"var(--warn)"}}>{t.synced?"● 送信済":"○ 未送信"}</span>}
+                </p>
+                <p style={{fontSize:14,fontWeight:500,margin:"0 0 4px",lineHeight:1.5}}>
+                  <span style={{color:"var(--txt2)"}}>{t.pWard||"—"}</span>{t.pArea}
+                  <span style={{color:"var(--txt3)",margin:"0 5px"}}>→</span>
+                  <span style={{color:"var(--txt2)"}}>{t.dWard||"—"}</span>{t.dArea}
+                </p>
+                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:PAY_CLR[t.pay]||"var(--txt2)"}}>{t.pay}</span>
+                  {t.stat!=="GO"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--txt3)"}}>{t.stat}</span>}
+                  {t.acc!=="専用"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--txt3)"}}>{t.acc}</span>}
+                  {t.sankyu!=="通常"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--warn)"}}>{t.sankyu}</span>}
+                </div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <p style={{fontSize:18,fontWeight:500,color:t.kuuten?"var(--err)":"var(--txt)",margin:"0 0 4px"}}>{t.kuuten&&<span style={{fontSize:14}}>-</span>}¥{t.fare.toLocaleString()}</p>
+                <div style={{display:"flex",gap:0,justifyContent:"flex-end"}}>
+                  {FORM_ID&&!t.synced&&<button onClick={()=>reSync(t)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--warn)",fontSize:14,padding:"3px 5px"}} title="再送信"><i className="ti ti-refresh" aria-hidden="true"/></button>}
+                  <button onClick={()=>{resetForm(t);setScreen("form");}} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-edit" aria-hidden="true"/></button>
+                  <button onClick={()=>setTrips(ts=>ts.filter(x=>x.id!==t.id))} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-trash" aria-hidden="true"/></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button onClick={()=>{resetForm();setScreen("form");}} style={S.fab}>
+        <i className="ti ti-plus" aria-hidden="true"/>
+      </button>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App, null));
+</script>
+</body>
+</html>
