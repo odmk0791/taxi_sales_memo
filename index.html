@@ -88,6 +88,16 @@ const DOW_JP = ["日","月","火","水","木","金","土"];
 const PAY_CLR = {"GO Pay":"var(--warn)","現金":"var(--ok)","クレジット":"var(--info)","IC":"var(--info)","QRコード":"var(--warn)"};
 const SHIFT_START_HOUR = 16;
 
+/* 市区の地理グループ（ピッカー表示用）*/
+const WARD_GROUPS = [
+  {label:"都心",  wards:["千代田区","中央区","港区","新宿区","渋谷区"]},
+  {label:"城南",  wards:["品川区","目黒区","大田区","世田谷区"]},
+  {label:"城西",  wards:["中野区","杉並区","練馬区"]},
+  {label:"城北",  wards:["文京区","豊島区","北区","荒川区","板橋区"]},
+  {label:"城東",  wards:["台東区","墨田区","江東区","足立区","葛飾区","江戸川区"]},
+  {label:"多摩",  wards:["三鷹市","武蔵野市"]},
+];
+
 const {useState,useEffect,useMemo,useCallback} = React;
 const pad2 = n => String(n).padStart(2,"0");
 
@@ -390,7 +400,7 @@ function App(){
   /* ── 住所ピッカーを開く ── */
   const openPicker=f=>{
     setPickerFor(f);
-    setPickWard(f==="p"?fpWard:f==="d"?fdWard:kWard);
+    setPickWard("");  // 毎回リセットしてグループ選択から始める
     setAreaQ(""); setGpsState("idle"); setGpsMsg("");
   };
 
@@ -459,6 +469,8 @@ function App(){
   /* ── 保存 ── */
   const saveTrip=async()=>{
     if(!fare)return;
+    const isEdit=!!editId;
+    const origSynced=isEdit?(trips.find(t=>t.id===editId)?.synced||false):false;
     const trip={
       id:editId||Date.now(), date:formDate, dow:getDow(formDate),
       pTime:fp, dTime:fd, jitsu,
@@ -467,9 +479,10 @@ function App(){
       fare:parseInt(fare.replace(/[^0-9]/g,""))||0,
       pay, acc, stat, sankyu, kotei, yuusen,
       easternName:pay==="イースタン"?easternName:"",
-      memo, synced:false,
+      memo, synced:origSynced,
     };
-    if(FORM_ID){
+    /* 新規のみGoogleフォームに送信。編集はローカル更新のみ */
+    if(FORM_ID && !isEdit){
       setSending(true);
       const ok=await submitToForm(trip);
       trip.synced=ok;
@@ -477,7 +490,7 @@ function App(){
       setTimeout(()=>setSendResult(null),3000);
       setSending(false);
     }
-    setTrips(ts=>editId?ts.map(t=>t.id===editId?trip:t):[...ts,trip]);
+    setTrips(ts=>isEdit?ts.map(t=>t.id===editId?trip:t):[...ts,trip]);
     setScreen("log");
   };
 
@@ -551,32 +564,108 @@ function App(){
         {gpsState==="err"&&<p style={{fontSize:11,color:"var(--txt3)",marginTop:4,textAlign:"center"}}>下のリストから手動で選択できます</p>}
       </div>
 
-      {/* 市区チップ */}
-      <div style={{background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)",padding:"8px 10px",overflowX:"auto",display:"flex",gap:6,WebkitOverflowScrolling:"touch"}}>
-        {wards.map(w=>(
-          <button key={w} onClick={()=>{setPickWard(w);setAreaQ("");}} style={{
-            whiteSpace:"nowrap",padding:"6px 13px",borderRadius:20,cursor:"pointer",
-            border:`0.5px solid ${pickWard===w?"var(--info)":"var(--bdr)"}`,
-            background:pickWard===w?"var(--bg2)":"var(--bg)",
-            color:pickWard===w?"var(--info)":"var(--txt2)",fontSize:13,flexShrink:0,
-          }}>{w}</button>
-        ))}
+      {/* 降車地・空転場所のみ：直接テキスト入力 */}
+      {(pickerFor==="d"||pickerFor==="k")&&(
+        <div style={{padding:"10px 12px",background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)"}}>
+          <label style={{fontSize:11,color:"var(--txt3)",display:"block",marginBottom:4}}>
+            DB外の場所を直接入力（千葉市・西東京市など）
+          </label>
+          <div style={{display:"flex",gap:8}}>
+            <input value={areaQ} onChange={e=>setAreaQ(e.target.value)}
+              placeholder="例：西東京市田無町"
+              style={{...S.inp,flex:1}}
+              onKeyDown={e=>{
+                if(e.key==="Enter"&&areaQ.trim()){
+                  const{ward,area}=parseAddr(areaQ.trim());
+                  pickArea(area||areaQ.trim(), ward);
+                }
+              }}
+            />
+            <button onClick={()=>{
+              if(!areaQ.trim())return;
+              const{ward,area}=parseAddr(areaQ.trim());
+              pickArea(area||areaQ.trim(), ward);
+            }} style={{
+              padding:"0 14px",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",
+              background:"var(--bg2)",color:"var(--txt)",fontSize:13,cursor:"pointer",flexShrink:0
+            }}>決定</button>
+          </div>
+        </div>
+      )}
+
+      {/* 市区グループ選択 */}
+      <div style={{overflowY:"auto",flex:1}}>
+        {/* 定義済みグループ */}
+        {WARD_GROUPS.map(grp=>{
+          const available=grp.wards.filter(w=>locDB[w]);
+          if(available.length===0)return null;
+          return(
+            <div key={grp.label} style={{borderBottom:"0.5px solid var(--bdr)"}}>
+              <p style={{fontSize:11,color:"var(--txt3)",padding:"6px 14px 4px",
+                         background:"var(--bg3)",margin:0,fontWeight:500}}>{grp.label}</p>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,padding:"8px 12px"}}>
+                {available.map(w=>(
+                  <button key={w} onClick={()=>{setPickWard(w);setAreaQ("");}} style={{
+                    padding:"7px 14px",borderRadius:20,cursor:"pointer",fontSize:14,
+                    border:`0.5px solid ${pickWard===w?"var(--info)":"var(--bdr)"}`,
+                    background:pickWard===w?"var(--info-bg)":"var(--bg)",
+                    color:pickWard===w?"var(--info)":"var(--txt)",
+                    fontWeight:pickWard===w?500:400,
+                  }}>{w}</button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        {/* その他（グループ外のward）*/}
+        {(()=>{
+          const defined=WARD_GROUPS.flatMap(g=>g.wards);
+          const others=wards.filter(w=>!defined.includes(w)&&locDB[w]);
+          if(others.length===0)return null;
+          return(
+            <div style={{borderBottom:"0.5px solid var(--bdr)"}}>
+              <p style={{fontSize:11,color:"var(--txt3)",padding:"6px 14px 4px",
+                         background:"var(--bg3)",margin:0,fontWeight:500}}>その他</p>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,padding:"8px 12px"}}>
+                {others.map(w=>(
+                  <button key={w} onClick={()=>{setPickWard(w);setAreaQ("");}} style={{
+                    padding:"7px 14px",borderRadius:20,cursor:"pointer",fontSize:14,
+                    border:`0.5px solid ${pickWard===w?"var(--info)":"var(--bdr)"}`,
+                    background:pickWard===w?"var(--info-bg)":"var(--bg)",
+                    color:pickWard===w?"var(--info)":"var(--txt)",
+                    fontWeight:pickWard===w?500:400,
+                  }}>{w}</button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
-      {/* 地名リスト */}
-      {pickWard&&<>
-        <div style={{padding:"8px 12px",background:"var(--bg3)"}}>
-          <input value={areaQ} onChange={e=>setAreaQ(e.target.value)}
-            placeholder={`${pickWard}内を絞り込み…`} style={S.inp}/>
+      {/* 地名リスト（市区選択後）*/}
+      {pickWard&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"var(--bg3)",
+                     zIndex:50,display:"flex",flexDirection:"column",maxWidth:480,margin:"0 auto"}}>
+          <div style={{...S.hdr,gap:10}}>
+            <button onClick={()=>setPickWard("")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+            <span style={{fontSize:15,fontWeight:500}}>{pickWard}</span>
+            <span style={{fontSize:11,color:"var(--txt3)"}}>{(locDB[pickWard]||[]).length}件</span>
+          </div>
+          <div style={{padding:"8px 12px",background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)"}}>
+            <input value={areaQ} onChange={e=>setAreaQ(e.target.value)}
+              placeholder={`${pickWard}内を絞り込み…`} style={S.inp}/>
+          </div>
+          <div style={{overflowY:"auto",flex:1,padding:"0 14px 40px"}}>
+            {pickerAreas.length===0&&<p style={{color:"var(--txt3)",fontSize:13,padding:"16px 0"}}>{locLoad?"読込中…":"該当なし"}</p>}
+            {pickerAreas.map((a,i)=>(
+              <div key={i} onClick={()=>pickArea(a)} style={{
+                padding:"12px 2px",borderBottom:"0.5px solid var(--bdr)",
+                fontSize:15,cursor:"pointer",userSelect:"none"
+              }}>{a}</div>
+            ))}
+          </div>
         </div>
-        <div style={{padding:"0 14px 80px"}}>
-          {pickerAreas.length===0&&<p style={{color:"var(--txt3)",fontSize:13,padding:"16px 0"}}>{locLoad?"読込中…":"該当なし"}</p>}
-          {pickerAreas.map((a,i)=>(
-            <div key={i} onClick={()=>pickArea(a)} style={{padding:"12px 2px",borderBottom:"0.5px solid var(--bdr)",fontSize:15,cursor:"pointer",userSelect:"none"}}>{a}</div>
-          ))}
-        </div>
-      </>}
-      {!pickWard&&<p style={{color:"var(--txt3)",fontSize:13,padding:"16px 14px"}}>上の市区ボタンを選んでください</p>}
+      )}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
