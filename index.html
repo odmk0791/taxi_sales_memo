@@ -362,6 +362,8 @@ function App(){
   const [editId,setEditId]=useState(null);
   const [copied,setCopied]=useState(false);
   const [sending,setSending]=useState(false);
+  const [nokinCopied,setNokinCopied]=useState(false);
+  const [kosouku,setKosouku]=useState("");
   const [sendResult,setSendResult]=useState(null);
 
   /* ── 乗車記録フォーム ── */
@@ -638,8 +640,6 @@ function App(){
      納金集計画面
   ════════════════════════════════ */
   if(screen==="nokin"){
-    const [nokinCopied,setNokinCopied]=useState(false);
-    const [kosouku,setKosouku]=useState(""); // 自腹の高速代（任意）
 
     const CARD_PAYS  =new Set(["GO Pay","QRコード","クレジット","IC"]);
     const MISHU_PAYS =new Set(["チケット","イースタン","福祉券","商品券"]);
