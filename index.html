@@ -614,11 +614,135 @@ function App(){
   const displayTrips=effectiveFix?trips.filter(t=>t.needsFix):trips;
   const displayKuutens=effectiveFix?kuutens.filter(k=>k.needsFix):kuutens;
 
+  /* ── 納金集計（現金を先頭・残りは金額降順）── */
+  const nokinData=useMemo(()=>{
+    const map={};
+    trips.forEach(t=>{
+      const p=t.pay||"その他";
+      if(!map[p])map[p]={count:0,total:0};
+      map[p].count++; map[p].total+=t.fare;
+    });
+    return Object.entries(map).sort(([a],[b])=>{
+      if(a==="現金")return -1; if(b==="現金")return 1;
+      return map[b].total-map[a].total;
+    });
+  },[trips]);
+
   /* フラグ操作ヘルパー */
   const toggleFix=id=>setTrips(ts=>ts.map(t=>t.id===id?{...t,needsFix:!t.needsFix,fixNote:t.needsFix?"":t.fixNote||""}:t));
   const setFixNote=(id,note)=>setTrips(ts=>ts.map(t=>t.id===id?{...t,fixNote:note}:t));
   const toggleKFix=id=>setKuutens(ks=>ks.map(k=>k.id===id?{...k,needsFix:!k.needsFix,fixNote:k.needsFix?"":k.fixNote||""}:k));
   const setKFixNote=(id,note)=>setKuutens(ks=>ks.map(k=>k.id===id?{...k,fixNote:note}:k));
+
+  /* ════════════════════════════════
+     納金集計画面
+  ════════════════════════════════ */
+  if(screen==="nokin"){
+    const [nokinCopied,setNokinCopied]=useState(false);
+    const cashEntry=nokinData.find(([p])=>p==="現金");
+    const cashTotal=cashEntry?cashEntry[1].total:0;
+
+    const copyNokin=()=>{
+      const date=trips[0]?.date||getShiftDate();
+      let txt=`【納金集計】 ${date}\n`;
+      txt+=`${"─".repeat(24)}\n`;
+      nokinData.forEach(([pay,{count,total}])=>{
+        const mark=pay==="現金"?"★ ":"  ";
+        txt+=`${mark}${pay.padEnd(8)}¥${total.toLocaleString().padStart(7)}  ${count}件\n`;
+      });
+      if(kuutenTotal>0){
+        txt+=`${"─".repeat(24)}\n`;
+        txt+=`  空転（控除）  -¥${kuutenTotal.toLocaleString().padStart(6)}  ${kuutens.length}件\n`;
+      }
+      txt+=`${"─".repeat(24)}\n`;
+      txt+=`  総売上       ¥${total.toLocaleString().padStart(7)}  ${trips.length}件\n`;
+      txt+=`★ 納金（現金） ¥${cashTotal.toLocaleString().padStart(7)}\n`;
+      navigator.clipboard.writeText(txt)
+        .then(()=>{setNokinCopied(true);setTimeout(()=>setNokinCopied(false),3000);})
+        .catch(()=>alert("コピーに失敗しました"));
+    };
+
+    return(
+      <div style={S.wrap}>
+        <div style={{...S.hdr,gap:10}}>
+          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+          <div>
+            <p style={{fontSize:16,fontWeight:500,margin:0}}>納金集計</p>
+            <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>{trips[0]?.date||getShiftDate()} — {trips.length}件</p>
+          </div>
+          <button onClick={copyNokin} style={{
+            display:"flex",alignItems:"center",gap:5,padding:"7px 12px",
+            background:"var(--bg2)",border:"0.5px solid var(--bdr2)",
+            borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--txt)"
+          }}>
+            <i className="ti ti-copy"/>{nokinCopied?"コピー済 ✓":"コピー"}
+          </button>
+        </div>
+
+        <div style={S.body}>
+          {/* 現金（納金）ハイライト */}
+          <div style={{
+            background:"var(--ok-bg)",border:"1.5px solid var(--ok-bd)",
+            borderRadius:"var(--rl)",padding:"16px 16px 12px",marginBottom:10
+          }}>
+            <p style={{fontSize:12,color:"var(--ok)",margin:"0 0 4px",fontWeight:500}}>
+              ★ 納金額（現金）
+            </p>
+            <p style={{fontSize:32,fontWeight:500,color:"var(--ok)",margin:"0 0 2px",fontFamily:"var(--mono)"}}>
+              ¥{cashTotal.toLocaleString()}
+            </p>
+            <p style={{fontSize:12,color:"var(--ok)",margin:0}}>
+              {cashEntry?cashEntry[1].count:0}件
+            </p>
+          </div>
+
+          {/* 支払い別内訳 */}
+          <div style={S.card}>
+            <p style={{fontSize:12,color:"var(--txt2)",margin:"0 0 10px",fontWeight:500}}>支払い別内訳</p>
+            {nokinData.map(([pay,{count,total:t}])=>(
+              <div key={pay} style={{
+                display:"flex",justifyContent:"space-between",alignItems:"center",
+                padding:"9px 0",
+                borderBottom:"0.5px solid var(--bdr)",
+              }}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  {pay==="現金"&&<span style={{fontSize:11,color:"var(--ok)",fontWeight:500}}>★</span>}
+                  <span style={{fontSize:15,color:pay==="現金"?"var(--ok)":"var(--txt)",fontWeight:pay==="現金"?500:400}}>
+                    {pay}
+                  </span>
+                  <span style={{fontSize:12,color:"var(--txt3)"}}>{count}件</span>
+                </div>
+                <span style={{fontSize:17,fontWeight:500,fontFamily:"var(--mono)",
+                              color:pay==="現金"?"var(--ok)":"var(--txt)"}}>
+                  ¥{t.toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* 空転・合計 */}
+          <div style={S.card}>
+            {kuutenTotal>0&&(
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                           padding:"8px 0",borderBottom:"0.5px solid var(--bdr)"}}>
+                <span style={{fontSize:14,color:"var(--err)"}}>空転（控除）</span>
+                <span style={{fontSize:16,fontWeight:500,fontFamily:"var(--mono)",color:"var(--err)"}}>
+                  −¥{kuutenTotal.toLocaleString()}
+                </span>
+              </div>
+            )}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                         padding:"10px 0 4px"}}>
+              <span style={{fontSize:14,color:"var(--txt2)"}}>総売上 ({trips.length}件)</span>
+              <span style={{fontSize:20,fontWeight:500,fontFamily:"var(--mono)"}}>
+                ¥{total.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   /* ════════════════════════════════
      住所ピッカー画面
@@ -1002,6 +1126,20 @@ function App(){
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:6,borderTop:"0.5px solid var(--bdr)"}}>
                 <span style={{fontSize:12,color:"var(--err)"}}>空転合計（控除）</span>
                 <span style={{fontSize:15,fontWeight:500,color:"var(--err)"}}>−¥{kuutenTotal.toLocaleString()}</span>
+              </div>
+            )}
+            {trips.length>0&&(
+              <div style={{paddingTop:8,marginTop:kuutens.length>0?0:6,borderTop:"0.5px solid var(--bdr)"}}>
+                <button onClick={()=>setScreen("nokin")} style={{
+                  width:"100%",padding:"10px",
+                  background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
+                  borderRadius:"var(--r)",fontSize:14,fontWeight:500,
+                  cursor:"pointer",color:"var(--ok)",
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:6
+                }}>
+                  <i className="ti ti-coins" style={{fontSize:16}}/>
+                  納金用データ作成
+                </button>
               </div>
             )}
           </div>
