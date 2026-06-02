@@ -88,6 +88,18 @@ const KUUTEN_FIELDS = {
   memo:  "entry.1272407810",
 };
 
+/* ── 休憩フォーム設定 ── */
+const REST_FORM_ID = "1FAIpQLSfdsbqkEMGWKctQvrzYIkXHldzvxJMrCzD1TAmGX57CUTlfhg";
+const REST_FIELDS = {
+  date:      "entry.323779937",
+  startTime: "entry.1315592223",
+  endTime:   "entry.390004713",
+  minutes:   "entry.2125989415",
+  memo:      "entry.472039999",
+};
+const BREAK_STORE_KEY  = "eimu_breaks_v1";
+const TARGET_BREAK_MINS = 150; /* 目標休憩時間（分）*/
+
 const LOC_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSpOj4QzyarqZtTDM5bld8QDEIzRodRLUwAfF8u42CbgTuGPoKqWrOKtw2Ddrhm0OnONlVnzwc8c1BX/pub?gid=657495537&single=true&output=csv";
 const STORE_KEY  = "eimu_trips_v2";
 const KUUTEN_KEY = "eimu_kuutens_v1";
@@ -243,6 +255,23 @@ async function submitKuutenToForm(k){
   catch{return false;}
 }
 
+/* ── 休憩フォーム送信 ── */
+async function submitBreakToForm(b){
+  if(!REST_FORM_ID)return false;
+  const url=`https://docs.google.com/forms/d/e/${REST_FORM_ID}/formResponse`;
+  const body=new FormData();
+  const map={
+    [REST_FIELDS.date]:      b.date,
+    [REST_FIELDS.startTime]: b.startTime,
+    [REST_FIELDS.endTime]:   b.endTime,
+    [REST_FIELDS.minutes]:   String(b.minutes),
+    [REST_FIELDS.memo]:      b.memo||"",
+  };
+  Object.entries(map).forEach(([k,v])=>body.append(k,v));
+  try{await fetch(url,{method:"POST",mode:"no-cors",body});return true;}
+  catch{return false;}
+}
+
 /* ══════════════════════════════════════
    スタイル定数
 ══════════════════════════════════════ */
@@ -266,6 +295,10 @@ const S={
          background:"var(--err-bg)",border:"0.5px solid var(--err-bd)",
          cursor:"pointer",display:"flex",alignItems:"center",gap:5,
          color:"var(--err)",zIndex:20,fontSize:13,fontWeight:500,
+         boxShadow:"0 2px 8px rgba(0,0,0,.10)"},
+  fab3: {position:"fixed",bottom:134,right:20,height:38,padding:"0 14px",borderRadius:19,
+         cursor:"pointer",display:"flex",alignItems:"center",gap:5,
+         zIndex:20,fontSize:13,fontWeight:500,
          boxShadow:"0 2px 8px rgba(0,0,0,.10)"},
 };
 
@@ -364,6 +397,11 @@ function App(){
   const [sending,setSending]=useState(false);
   const [nokinCopied,setNokinCopied]=useState(false);
   const [kosouku,setKosouku]=useState("");
+  /* 休憩管理 */
+  const [breaks,setBreaks]=useState(()=>{try{return JSON.parse(localStorage.getItem(BREAK_STORE_KEY)||"[]");}catch{return[];}});
+  const [breakStart,setBreakStart]=useState(null);   /* 休憩開始時刻（シフト時刻）*/
+  const [breakStartTs,setBreakStartTs]=useState(null); /* 開始のDate.now() */
+  const [elapsed,setElapsed]=useState(0);            /* 経過秒数 */
   const [sendResult,setSendResult]=useState(null);
 
   /* ── 乗車記録フォーム ── */
@@ -401,6 +439,14 @@ function App(){
   /* ── persist ── */
   useEffect(()=>{try{localStorage.setItem(STORE_KEY,JSON.stringify(trips));}catch{}},[trips]);
   useEffect(()=>{try{localStorage.setItem(KUUTEN_KEY,JSON.stringify(kuutens));}catch{}},[kuutens]);
+  useEffect(()=>{try{localStorage.setItem(BREAK_STORE_KEY,JSON.stringify(breaks));}catch{}},[breaks]);
+
+  /* 休憩タイマー */
+  useEffect(()=>{
+    if(!breakStartTs){setElapsed(0);return;}
+    const iv=setInterval(()=>setElapsed(Math.floor((Date.now()-breakStartTs)/1000)),1000);
+    return()=>clearInterval(iv);
+  },[breakStartTs]);
 
   /* ── 住所DB読み込み（lat/lng も取得）── */
   useEffect(()=>{
@@ -569,8 +615,7 @@ function App(){
     setScreen("log");
   };
 
-  const saveKuuten=async()=>{
-    const k={
+  const saveKuuten=async()=>{    const k={
       id:Date.now(), date:getShiftDate(),
       kType, time:kTime, ward:kWard, area:kArea,
       lat:kLat, lng:kLng,
@@ -583,7 +628,27 @@ function App(){
     resetKuutenForm(); setScreen("log");
   };
 
-  /* ── CSV エクスポート ── */
+  /* ── 休憩開始 ── */
+  const startBreak=()=>{
+    setBreakStart(getShiftNow());
+    setBreakStartTs(Date.now());
+    setElapsed(0);
+  };
+
+  /* ── 休憩終了 ── */
+  const endBreak=async()=>{
+    if(!breakStart)return;
+    const endTime=getShiftNow();
+    const toM=t=>{const[h,m]=t.split(":").map(Number);return h*60+m;};
+    let diff=toM(endTime)-toM(breakStart);
+    if(diff<0)diff+=24*60;
+    const minutes=Math.round(diff);
+    const rec={id:Date.now(),date:getShiftDate(),startTime:breakStart,endTime,minutes,memo:"",synced:false};
+    const ok=await submitBreakToForm(rec);
+    rec.synced=ok;
+    setBreaks(bs=>[...bs,rec]);
+    setBreakStart(null); setBreakStartTs(null); setElapsed(0);
+  };
   const doExport=()=>{
     const h="日付,曜日,乗車時間,降車時間,実車時間,乗車地：市区,乗車地：地名,乗車地：緯度,乗車地：経度,降車地：市区,降車地：地名,降車地：緯度,降車地：経度,料金,アカウント,ステータス,支払,サンキュー,固定客,優先パス,イースタン氏名,メモ";
     const rows=trips.map(t=>[
@@ -615,6 +680,8 @@ function App(){
   const effectiveFix=showFixOnly&&fixCount>0;
   const displayTrips=effectiveFix?trips.filter(t=>t.needsFix):trips;
   const displayKuutens=effectiveFix?kuutens.filter(k=>k.needsFix):kuutens;
+  const totalBreakMins=breaks.reduce((s,b)=>s+b.minutes,0);
+  const formatElapsed=s=>`${Math.floor(s/60)}:${pad2(s%60)}`;
 
   /* ── 納金集計（現金を先頭・残りは金額降順）── */
   const nokinData=useMemo(()=>{
@@ -1135,7 +1202,7 @@ function App(){
               const msg=fixCount>0
                 ?`要修正フラグが ${fixCount}件 あります。\n修正完了しましたか？\n\n「OK」で全記録を削除します。`
                 :"今日の全記録を削除しますか？";
-              if(confirm(msg)){setTrips([]);setKuutens([]);setShowFixOnly(false);}
+              if(confirm(msg)){setTrips([]);setKuutens([]);setBreaks([]);setShowFixOnly(false);}
             }} style={{padding:"7px 10px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--err)"}}>
               <i className="ti ti-trash"/>
             </button>
@@ -1170,6 +1237,52 @@ function App(){
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* 休憩中バナー */}
+        {breakStart&&(
+          <div style={{background:"var(--ok-bg)",border:"1.5px solid var(--ok-bd)",borderRadius:"var(--rl)",padding:"12px 14px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <p style={{fontSize:12,color:"var(--ok)",fontWeight:500,margin:"0 0 2px"}}>
+                <i className="ti ti-coffee" style={{fontSize:12,marginRight:4}}/>休憩中　{breakStart}〜
+              </p>
+              <p style={{fontSize:28,fontWeight:500,fontFamily:"var(--mono)",color:"var(--ok)",margin:0}}>
+                {formatElapsed(elapsed)}
+              </p>
+            </div>
+            <button onClick={endBreak} style={{padding:"10px 18px",background:"var(--ok)",border:"none",borderRadius:"var(--r)",fontSize:14,fontWeight:500,cursor:"pointer",color:"#fff"}}>
+              終了
+            </button>
+          </div>
+        )}
+
+        {/* 休憩サマリー（完了分）*/}
+        {breaks.length>0&&(
+          <div style={{...S.card,marginBottom:10,borderLeft:"3px solid var(--ok)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <span style={{fontSize:13,fontWeight:500,color:"var(--ok)"}}>
+                <i className="ti ti-coffee" style={{marginRight:4}}/>休憩
+              </span>
+              <span style={{fontSize:13,color:totalBreakMins>=TARGET_BREAK_MINS?"var(--ok)":"var(--txt2)"}}>
+                {totalBreakMins}分 / 目標{TARGET_BREAK_MINS}分
+              </span>
+            </div>
+            {/* プログレスバー */}
+            <div style={{height:4,background:"var(--bg2)",borderRadius:2,marginBottom:8}}>
+              <div style={{height:4,borderRadius:2,background:"var(--ok)",width:`${Math.min(100,totalBreakMins/TARGET_BREAK_MINS*100)}%`,transition:"width .3s"}}/>
+            </div>
+            {breaks.map((b,i)=>(
+              <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,color:"var(--txt2)",padding:"3px 0",borderTop:i>0?"0.5px solid var(--bdr)":"none"}}>
+                <span>{i+1}回目　{b.startTime}–{b.endTime}</span>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <span style={{fontFamily:"var(--mono)"}}>{b.minutes}分</span>
+                  <button onClick={()=>setBreaks(bs=>bs.filter(x=>x.id!==b.id))} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:13,padding:"1px 3px"}}>
+                    <i className="ti ti-trash"/>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -1284,6 +1397,15 @@ function App(){
 
       <button onClick={()=>{resetKuutenForm();setScreen("kuuten");}} style={S.fab2}>
         <i className="ti ti-alert-triangle" style={{fontSize:14}}/>空転を記録
+      </button>
+      <button onClick={breakStart?endBreak:startBreak} style={{
+        ...S.fab3,
+        background:breakStart?"var(--ok)":"var(--ok-bg)",
+        border:`0.5px solid var(--ok-bd)`,
+        color:breakStart?"#fff":"var(--ok)",
+      }}>
+        <i className={`ti ${breakStart?"ti-player-stop":"ti-coffee"}`} style={{fontSize:14}}/>
+        {breakStart?`終了 ${formatElapsed(elapsed)}`:"休憩開始"}
       </button>
       <button onClick={()=>{resetTripForm();setScreen("form");}} style={S.fab}>
         <i className="ti ti-plus"/>
