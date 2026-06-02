@@ -609,8 +609,10 @@ function App(){
   const unsyncedCount=FORM_ID?trips.filter(t=>!t.synced).length:0;
   const [showFixOnly,setShowFixOnly]=useState(false);
   const fixCount=trips.filter(t=>t.needsFix).length+kuutens.filter(k=>k.needsFix).length;
-  const displayTrips=showFixOnly?trips.filter(t=>t.needsFix):trips;
-  const displayKuutens=showFixOnly?kuutens.filter(k=>k.needsFix):kuutens;
+  /* フラグが全件オフになったら自動的に絞り込み解除 */
+  const effectiveFix=showFixOnly&&fixCount>0;
+  const displayTrips=effectiveFix?trips.filter(t=>t.needsFix):trips;
+  const displayKuutens=effectiveFix?kuutens.filter(k=>k.needsFix):kuutens;
 
   /* フラグ操作ヘルパー */
   const toggleFix=id=>setTrips(ts=>ts.map(t=>t.id===id?{...t,needsFix:!t.needsFix,fixNote:t.needsFix?"":t.fixNote||""}:t));
