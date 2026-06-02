@@ -639,28 +639,65 @@ function App(){
   ════════════════════════════════ */
   if(screen==="nokin"){
     const [nokinCopied,setNokinCopied]=useState(false);
-    const cashEntry=nokinData.find(([p])=>p==="現金");
-    const cashTotal=cashEntry?cashEntry[1].total:0;
+
+    /* 支払い方法 → 納金分類マッピング */
+    const CARD_PAYS  =new Set(["GO Pay","QRコード","クレジット","IC"]);
+    const MISHU_PAYS =new Set(["チケット","イースタン","福祉券","商品券"]);
+    /* 上記以外はすべて現金扱い（"現金","その他"など） */
+
+    const grouped={cash:{total:0,count:0,items:{}},card:{total:0,count:0,items:{}},mishu:{total:0,count:0,items:{}}};
+    trips.forEach(t=>{
+      const p=t.pay||"現金";
+      const grp=CARD_PAYS.has(p)?"card":MISHU_PAYS.has(p)?"mishu":"cash";
+      grouped[grp].total+=t.fare;
+      grouped[grp].count++;
+      if(!grouped[grp].items[p])grouped[grp].items[p]={total:0,count:0};
+      grouped[grp].items[p].total+=t.fare;
+      grouped[grp].items[p].count++;
+    });
+
+    const mochikin=grouped.cash.total+grouped.mishu.total; /* 持参金額 */
 
     const copyNokin=()=>{
       const date=trips[0]?.date||getShiftDate();
-      let txt=`【納金集計】 ${date}\n`;
-      txt+=`${"─".repeat(24)}\n`;
-      nokinData.forEach(([pay,{count,total}])=>{
-        const mark=pay==="現金"?"★ ":"  ";
-        txt+=`${mark}${pay.padEnd(8)}¥${total.toLocaleString().padStart(7)}  ${count}件\n`;
+      let txt=`【納金集計】${date}\n`;
+      txt+=`${"─".repeat(26)}\n`;
+      txt+=`★ 持参金額（現金＋未収）\n`;
+      txt+=`  ¥${mochikin.toLocaleString()}\n\n`;
+      txt+=`現金（持参）  ¥${grouped.cash.total.toLocaleString()}  ${grouped.cash.count}件\n`;
+      Object.entries(grouped.cash.items).forEach(([p,{total,count}])=>{
+        txt+=`  ${p}  ¥${total.toLocaleString()}  ${count}件\n`;
+      });
+      txt+=`\n未収（伝票持参）  ¥${grouped.mishu.total.toLocaleString()}  ${grouped.mishu.count}件\n`;
+      Object.entries(grouped.mishu.items).forEach(([p,{total,count}])=>{
+        txt+=`  ${p}  ¥${total.toLocaleString()}  ${count}件\n`;
+      });
+      txt+=`\nカード（自動精算）  ¥${grouped.card.total.toLocaleString()}  ${grouped.card.count}件\n`;
+      Object.entries(grouped.card.items).forEach(([p,{total,count}])=>{
+        txt+=`  ${p}  ¥${total.toLocaleString()}  ${count}件\n`;
       });
       if(kuutenTotal>0){
-        txt+=`${"─".repeat(24)}\n`;
-        txt+=`  空転（控除）  -¥${kuutenTotal.toLocaleString().padStart(6)}  ${kuutens.length}件\n`;
+        txt+=`\nマイナス納金（空転）  -¥${kuutenTotal.toLocaleString()}  ${kuutens.length}件\n`;
       }
-      txt+=`${"─".repeat(24)}\n`;
-      txt+=`  総売上       ¥${total.toLocaleString().padStart(7)}  ${trips.length}件\n`;
-      txt+=`★ 納金（現金） ¥${cashTotal.toLocaleString().padStart(7)}\n`;
+      txt+=`${"─".repeat(26)}\n`;
+      txt+=`総売上  ¥${total.toLocaleString()}  ${trips.length}件\n`;
       navigator.clipboard.writeText(txt)
         .then(()=>{setNokinCopied(true);setTimeout(()=>setNokinCopied(false),3000);})
         .catch(()=>alert("コピーに失敗しました"));
     };
+
+    /* 各カテゴリの内訳表示 */
+    const DetailRows=({items})=>Object.entries(items).length<=1?null:(
+      <div style={{paddingLeft:12,marginTop:4}}>
+        {Object.entries(items).map(([p,{total,count}])=>(
+          <div key={p} style={{display:"flex",justifyContent:"space-between",
+                               padding:"4px 0",borderTop:"0.5px solid var(--bdr)"}}>
+            <span style={{fontSize:12,color:"var(--txt3)"}}>{p}  {count}件</span>
+            <span style={{fontSize:13,fontFamily:"var(--mono)",color:"var(--txt2)"}}>¥{total.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    );
 
     return(
       <div style={S.wrap}>
@@ -680,65 +717,98 @@ function App(){
         </div>
 
         <div style={S.body}>
-          {/* 現金（納金）ハイライト */}
-          <div style={{
-            background:"var(--ok-bg)",border:"1.5px solid var(--ok-bd)",
-            borderRadius:"var(--rl)",padding:"16px 16px 12px",marginBottom:10
-          }}>
-            <p style={{fontSize:12,color:"var(--ok)",margin:"0 0 4px",fontWeight:500}}>
-              ★ 納金額（現金）
+
+          {/* ★ 持参金額（最重要）*/}
+          <div style={{background:"var(--ok-bg)",border:"1.5px solid var(--ok-bd)",
+                       borderRadius:"var(--rl)",padding:"16px",marginBottom:10}}>
+            <p style={{fontSize:12,color:"var(--ok)",fontWeight:500,margin:"0 0 6px"}}>
+              ★ 持参金額（現金 ＋ 未収）
             </p>
-            <p style={{fontSize:32,fontWeight:500,color:"var(--ok)",margin:"0 0 2px",fontFamily:"var(--mono)"}}>
-              ¥{cashTotal.toLocaleString()}
+            <p style={{fontSize:36,fontWeight:500,color:"var(--ok)",margin:"0 0 6px",fontFamily:"var(--mono)"}}>
+              ¥{mochikin.toLocaleString()}
             </p>
             <p style={{fontSize:12,color:"var(--ok)",margin:0}}>
-              {cashEntry?cashEntry[1].count:0}件
+              現金 ¥{grouped.cash.total.toLocaleString()} + 未収 ¥{grouped.mishu.total.toLocaleString()}
             </p>
           </div>
 
-          {/* 支払い別内訳 */}
-          <div style={S.card}>
-            <p style={{fontSize:12,color:"var(--txt2)",margin:"0 0 10px",fontWeight:500}}>支払い別内訳</p>
-            {nokinData.map(([pay,{count,total:t}])=>(
-              <div key={pay} style={{
-                display:"flex",justifyContent:"space-between",alignItems:"center",
-                padding:"9px 0",
-                borderBottom:"0.5px solid var(--bdr)",
-              }}>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  {pay==="現金"&&<span style={{fontSize:11,color:"var(--ok)",fontWeight:500}}>★</span>}
-                  <span style={{fontSize:15,color:pay==="現金"?"var(--ok)":"var(--txt)",fontWeight:pay==="現金"?500:400}}>
-                    {pay}
-                  </span>
-                  <span style={{fontSize:12,color:"var(--txt3)"}}>{count}件</span>
-                </div>
-                <span style={{fontSize:17,fontWeight:500,fontFamily:"var(--mono)",
-                              color:pay==="現金"?"var(--ok)":"var(--txt)"}}>
-                  ¥{t.toLocaleString()}
-                </span>
+          {/* 現金 */}
+          <div style={{...S.card,marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <p style={{fontSize:13,fontWeight:500,color:"var(--ok)",margin:"0 0 1px"}}>現金（持参）</p>
+                <p style={{fontSize:11,color:"var(--txt3)",margin:0}}>{grouped.cash.count}件</p>
               </div>
-            ))}
+              <span style={{fontSize:20,fontWeight:500,fontFamily:"var(--mono)",color:"var(--ok)"}}>
+                ¥{grouped.cash.total.toLocaleString()}
+              </span>
+            </div>
+            <DetailRows items={grouped.cash.items}/>
           </div>
 
-          {/* 空転・合計 */}
+          {/* 未収 */}
+          <div style={{...S.card,marginBottom:8,
+                       borderColor:grouped.mishu.count>0?"var(--warn-bd)":"var(--bdr)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <p style={{fontSize:13,fontWeight:500,
+                           color:grouped.mishu.count>0?"var(--warn)":"var(--txt3)",
+                           margin:"0 0 1px"}}>未収（チケット等・伝票持参）</p>
+                <p style={{fontSize:11,color:"var(--txt3)",margin:0}}>
+                  {grouped.mishu.count>0?`${grouped.mishu.count}件`:"なし"}
+                </p>
+              </div>
+              <span style={{fontSize:20,fontWeight:500,fontFamily:"var(--mono)",
+                            color:grouped.mishu.count>0?"var(--warn)":"var(--txt3)"}}>
+                {grouped.mishu.count>0?`¥${grouped.mishu.total.toLocaleString()}`:"¥0"}
+              </span>
+            </div>
+            <DetailRows items={grouped.mishu.items}/>
+          </div>
+
+          {/* カード */}
           <div style={S.card}>
-            {kuutenTotal>0&&(
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                           padding:"8px 0",borderBottom:"0.5px solid var(--bdr)"}}>
-                <span style={{fontSize:14,color:"var(--err)"}}>空転（控除）</span>
-                <span style={{fontSize:16,fontWeight:500,fontFamily:"var(--mono)",color:"var(--err)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <p style={{fontSize:13,fontWeight:500,color:"var(--info)",margin:"0 0 1px"}}>
+                  カード（自動精算）
+                </p>
+                <p style={{fontSize:11,color:"var(--txt3)",margin:0}}>
+                  GO Pay / QR / クレジット / IC — {grouped.card.count}件
+                </p>
+              </div>
+              <span style={{fontSize:20,fontWeight:500,fontFamily:"var(--mono)",color:"var(--info)"}}>
+                ¥{grouped.card.total.toLocaleString()}
+              </span>
+            </div>
+            <DetailRows items={grouped.card.items}/>
+          </div>
+
+          {/* マイナス納金（空転） */}
+          {kuutenTotal>0&&(
+            <div style={{...S.card,marginTop:8,border:"0.5px solid var(--err-bd)"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <p style={{fontSize:13,fontWeight:500,color:"var(--err)",margin:"0 0 1px"}}>マイナス納金（空転）</p>
+                  <p style={{fontSize:11,color:"var(--txt3)",margin:0}}>{kuutens.length}件</p>
+                </div>
+                <span style={{fontSize:20,fontWeight:500,fontFamily:"var(--mono)",color:"var(--err)"}}>
                   −¥{kuutenTotal.toLocaleString()}
                 </span>
               </div>
-            )}
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                         padding:"10px 0 4px"}}>
-              <span style={{fontSize:14,color:"var(--txt2)"}}>総売上 ({trips.length}件)</span>
-              <span style={{fontSize:20,fontWeight:500,fontFamily:"var(--mono)"}}>
+            </div>
+          )}
+
+          {/* 総売上 */}
+          <div style={{...S.card,marginTop:10,borderTop:"2px solid var(--bdr2)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:13,color:"var(--txt2)"}}>総売上（{trips.length}件）</span>
+              <span style={{fontSize:22,fontWeight:500,fontFamily:"var(--mono)"}}>
                 ¥{total.toLocaleString()}
               </span>
             </div>
           </div>
+
         </div>
       </div>
     );
