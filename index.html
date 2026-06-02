@@ -74,6 +74,20 @@ const FIELDS = {
   memo:          "entry.750070485",
 };
 
+/* ── 空転フォーム設定 ── */
+const KUUTEN_FORM_ID = "1FAIpQLSfq1CUV2dWQ2GYUm4siEFvSuxXzT2MHPXZQh56KnqT5V_yE7w";
+const KUUTEN_FIELDS = {
+  date:  "entry.1449615682",
+  kType: "entry.858462047",
+  time:  "entry.951478410",
+  ward:  "entry.1339860978",
+  area:  "entry.1293439411",
+  lat:   "entry.350136595",
+  lng:   "entry.1696965668",
+  fare:  "entry.1666064088",
+  memo:  "entry.1272407810",
+};
+
 const LOC_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSpOj4QzyarqZtTDM5bld8QDEIzRodRLUwAfF8u42CbgTuGPoKqWrOKtw2Ddrhm0OnONlVnzwc8c1BX/pub?gid=657495537&single=true&output=csv";
 const STORE_KEY  = "eimu_trips_v2";
 const KUUTEN_KEY = "eimu_kuutens_v1";
@@ -204,6 +218,27 @@ async function submitToForm(trip){
     [FIELDS.memo]:trip.memo||"",
   };
   Object.entries(map).forEach(([k,v])=>body.append(k,v));
+  try{await fetch(url,{method:"POST",mode:"no-cors",body});return true;}
+  catch{return false;}
+}
+
+/* ── 空転フォーム送信 ── */
+async function submitKuutenToForm(k){
+  if(!KUUTEN_FORM_ID)return false;
+  const url=`https://docs.google.com/forms/d/e/${KUUTEN_FORM_ID}/formResponse`;
+  const body=new FormData();
+  const map={
+    [KUUTEN_FIELDS.date]: k.date,
+    [KUUTEN_FIELDS.kType]:k.kType==="A"?"迎車キャンセル":"メーター空転",
+    [KUUTEN_FIELDS.time]: k.time,
+    [KUUTEN_FIELDS.ward]: k.ward,
+    [KUUTEN_FIELDS.area]: k.area,
+    [KUUTEN_FIELDS.lat]:  k.lat!=null?String(k.lat):"",
+    [KUUTEN_FIELDS.lng]:  k.lng!=null?String(k.lng):"",
+    [KUUTEN_FIELDS.fare]: fmtFare(k.fare),
+    [KUUTEN_FIELDS.memo]: k.memo||"",
+  };
+  Object.entries(map).forEach(([key,val])=>body.append(key,val));
   try{await fetch(url,{method:"POST",mode:"no-cors",body});return true;}
   catch{return false;}
 }
@@ -494,13 +529,17 @@ function App(){
     setScreen("log");
   };
 
-  const saveKuuten=()=>{
-    setKuutens(ks=>[...ks,{
+  const saveKuuten=async()=>{
+    const k={
       id:Date.now(), date:getShiftDate(),
       kType, time:kTime, ward:kWard, area:kArea,
       lat:kLat, lng:kLng,
       fare:parseInt(kFare)||0, memo:kMemo,
-    }]);
+      synced:false,
+    };
+    const ok=await submitKuutenToForm(k);
+    k.synced=ok;
+    setKuutens(ks=>[...ks,k]);
     resetKuutenForm(); setScreen("log");
   };
 
