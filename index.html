@@ -505,7 +505,8 @@ function App(){
   const saveTrip=async()=>{
     if(!fare)return;
     const isEdit=!!editId;
-    const origSynced=isEdit?(trips.find(t=>t.id===editId)?.synced||false):false;
+    const origTrip=isEdit?trips.find(t=>t.id===editId):null;
+    const origSynced=origTrip?.synced||false;
     const trip={
       id:editId||Date.now(), date:formDate, dow:getDow(formDate),
       pTime:fp, dTime:fd, jitsu,
@@ -515,9 +516,46 @@ function App(){
       pay, acc, stat, sankyu, kotei, yuusen,
       easternName:pay==="イースタン"?easternName:"",
       memo, synced:origSynced,
+      needsFix:origTrip?.needsFix||false,
+      fixNote:origTrip?.fixNote||"",
     };
+
+    /* 編集時：変更箇所を自動検出して修正履歴をメモに追記 */
+    if(isEdit&&origTrip){
+      const chg=[];
+      const fmtLoc=(w,a)=>w?(w+(a||"")):"—";
+      if(origTrip.fare!==trip.fare)
+        chg.push(`料金: ${fmtFare(origTrip.fare)} → ${fmtFare(trip.fare)}`);
+      if(origTrip.pTime!==trip.pTime)
+        chg.push(`乗車時間: ${origTrip.pTime} → ${trip.pTime}`);
+      if(origTrip.dTime!==trip.dTime)
+        chg.push(`降車時間: ${origTrip.dTime} → ${trip.dTime}`);
+      if(origTrip.pWard!==trip.pWard||origTrip.pArea!==trip.pArea)
+        chg.push(`乗車地: ${fmtLoc(origTrip.pWard,origTrip.pArea)} → ${fmtLoc(trip.pWard,trip.pArea)}`);
+      if(origTrip.dWard!==trip.dWard||origTrip.dArea!==trip.dArea)
+        chg.push(`降車地: ${fmtLoc(origTrip.dWard,origTrip.dArea)} → ${fmtLoc(trip.dWard,trip.dArea)}`);
+      if(origTrip.pay!==trip.pay)
+        chg.push(`支払: ${origTrip.pay} → ${trip.pay}`);
+      if(origTrip.acc!==trip.acc)
+        chg.push(`アカウント: ${origTrip.acc} → ${trip.acc}`);
+      if(origTrip.stat!==trip.stat)
+        chg.push(`ステータス: ${origTrip.stat} → ${trip.stat}`);
+      if(origTrip.sankyu!==trip.sankyu)
+        chg.push(`サンキュー: ${origTrip.sankyu} → ${trip.sankyu}`);
+      if(origTrip.kotei!==trip.kotei)
+        chg.push(`固定: ${origTrip.kotei} → ${trip.kotei}`);
+      if((origTrip.yuusen||false)!==(trip.yuusen||false))
+        chg.push(`優先パス: ${origTrip.yuusen?"ON":"OFF"} → ${trip.yuusen?"ON":"OFF"}`);
+
+      if(chg.length>0){
+        const entry=`[${getShiftNow()}] ${chg.join(" / ")}`;
+        trip.fixNote=(trip.fixNote?trip.fixNote+"\n":"")+entry;
+        trip.needsFix=true; /* 変更があれば自動フラグ */
+      }
+    }
+
     /* 新規のみGoogleフォームに送信。編集はローカル更新のみ */
-    if(FORM_ID && !isEdit){
+    if(FORM_ID&&!isEdit){
       setSending(true);
       const ok=await submitToForm(trip);
       trip.synced=ok;
