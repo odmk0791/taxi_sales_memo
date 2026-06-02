@@ -48,17 +48,30 @@
 /* =====================================================
    ★ Googleフォーム設定 ★
    ===================================================== */
-const FORM_ID = "";
+const FORM_ID = "1FAIpQLScqTvIQaJ-OEJy52fCTMmw3_vd4lgDEHsYS3r1XY3JCmZdh7A";
 const FIELDS = {
-  date:"entry.0000000001",    dow:"entry.0000000002",
-  pTime:"entry.0000000003",   dTime:"entry.0000000004",  jitsu:"entry.0000000005",
-  pWard:"entry.0000000006",   pArea:"entry.0000000007",
-  dWard:"entry.0000000008",   dArea:"entry.0000000009",
-  fare:"entry.0000000010",    acc:"entry.0000000011",
-  stat:"entry.0000000012",    pay:"entry.0000000013",
-  sankyu:"entry.0000000014",  kotei:"entry.0000000015",
-  yuusen:"entry.0000000016",  easternName:"entry.0000000017",
-  memo:"entry.0000000018",
+  date:          "entry.1303441950",
+  dow:           "entry.1436016897",
+  pTime:         "entry.914223619",
+  dTime:         "entry.1499035925",
+  jitsu:         "entry.1806788542",
+  pWard:         "entry.913312250",
+  pArea:         "entry.431036022",
+  pLat:          "entry.1239773220",
+  pLng:          "entry.504283522",
+  dWard:         "entry.987071180",
+  dArea:         "entry.295082764",
+  dLat:          "entry.332685219",
+  dLng:          "entry.297272372",
+  fare:          "entry.1114782733",
+  acc:           "entry.1191439471",
+  stat:          "entry.2133648405",
+  pay:           "entry.2056900070",
+  sankyu:        "entry.52331897",
+  kotei:         "entry.506199110",
+  yuusen:        "entry.833321972",
+  easternName:   "entry.1543643489",
+  memo:          "entry.750070485",
 };
 
 const LOC_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSpOj4QzyarqZtTDM5bld8QDEIzRodRLUwAfF8u42CbgTuGPoKqWrOKtw2Ddrhm0OnONlVnzwc8c1BX/pub?gid=657495537&single=true&output=csv";
@@ -162,13 +175,17 @@ function getGPS(timeoutMs=8000){
 /* ── Google Forms 送信 ── */
 async function submitToForm(trip){
   if(!FORM_ID)return false;
-  const url=`https://docs.google.com/forms/d/${FORM_ID}/formResponse`;
+  const url=`https://docs.google.com/forms/d/e/${FORM_ID}/formResponse`;
   const body=new FormData();
   const map={
     [FIELDS.date]:trip.date,       [FIELDS.dow]:trip.dow,
     [FIELDS.pTime]:trip.pTime,     [FIELDS.dTime]:trip.dTime,  [FIELDS.jitsu]:trip.jitsu,
     [FIELDS.pWard]:trip.pWard,     [FIELDS.pArea]:trip.pArea,
+    [FIELDS.pLat]:trip.pLat!=null?String(trip.pLat):"",
+    [FIELDS.pLng]:trip.pLng!=null?String(trip.pLng):"",
     [FIELDS.dWard]:trip.dWard,     [FIELDS.dArea]:trip.dArea,
+    [FIELDS.dLat]:trip.dLat!=null?String(trip.dLat):"",
+    [FIELDS.dLng]:trip.dLng!=null?String(trip.dLng):"",
     [FIELDS.fare]:fmtFare(trip.fare), [FIELDS.acc]:trip.acc,
     [FIELDS.stat]:trip.stat,       [FIELDS.pay]:trip.pay,
     [FIELDS.sankyu]:trip.sankyu,   [FIELDS.kotei]:trip.kotei,
