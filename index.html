@@ -569,6 +569,16 @@ function App(){
   const total=trips.reduce((s,t)=>s+t.fare,0);
   const kuutenTotal=kuutens.reduce((s,k)=>s+k.fare,0);
   const unsyncedCount=FORM_ID?trips.filter(t=>!t.synced).length:0;
+  const [showFixOnly,setShowFixOnly]=useState(false);
+  const fixCount=trips.filter(t=>t.needsFix).length+kuutens.filter(k=>k.needsFix).length;
+  const displayTrips=showFixOnly?trips.filter(t=>t.needsFix):trips;
+  const displayKuutens=showFixOnly?kuutens.filter(k=>k.needsFix):kuutens;
+
+  /* フラグ操作ヘルパー */
+  const toggleFix=id=>setTrips(ts=>ts.map(t=>t.id===id?{...t,needsFix:!t.needsFix,fixNote:t.needsFix?"":t.fixNote||""}:t));
+  const setFixNote=(id,note)=>setTrips(ts=>ts.map(t=>t.id===id?{...t,fixNote:note}:t));
+  const toggleKFix=id=>setKuutens(ks=>ks.map(k=>k.id===id?{...k,needsFix:!k.needsFix,fixNote:k.needsFix?"":k.fixNote||""}:k));
+  const setKFixNote=(id,note)=>setKuutens(ks=>ks.map(k=>k.id===id?{...k,fixNote:note}:k));
 
   /* ════════════════════════════════
      住所ピッカー画面
@@ -910,14 +920,31 @@ function App(){
             {unsyncedCount>0&&<span style={{color:"var(--warn)",marginLeft:6}}>未送信{unsyncedCount}</span>}
           </p>
         </div>
-        <div style={{display:"flex",gap:6}}>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          {/* 要修正フィルター */}
+          {fixCount>0&&(
+            <button onClick={()=>setShowFixOnly(v=>!v)} style={{
+              display:"flex",alignItems:"center",gap:4,padding:"7px 11px",
+              background:showFixOnly?"var(--warn-bg)":"var(--bg2)",
+              border:`0.5px solid ${showFixOnly?"var(--warn-bd)":"var(--bdr2)"}`,
+              borderRadius:"var(--r)",fontSize:13,cursor:"pointer",
+              color:showFixOnly?"var(--warn)":"var(--warn)",fontWeight:500,
+            }}>
+              <i className="ti ti-flag-3"/>要修正 {fixCount}件
+            </button>
+          )}
           {(trips.length>0||kuutens.length>0)&&(
             <button onClick={doExport} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 11px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--txt)"}}>
               <i className="ti ti-copy"/>{copied?"済 ✓":"CSV"}
             </button>
           )}
           {(trips.length>0||kuutens.length>0)&&(
-            <button onClick={()=>{if(confirm("今日の全記録を削除しますか？")){setTrips([]);setKuutens([]);}}} style={{padding:"7px 10px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--err)"}}>
+            <button onClick={()=>{
+              const msg=fixCount>0
+                ?`要修正フラグが ${fixCount}件 あります。\n修正完了しましたか？\n\n「OK」で全記録を削除します。`
+                :"今日の全記録を削除しますか？";
+              if(confirm(msg)){setTrips([]);setKuutens([]);setShowFixOnly(false);}
+            }} style={{padding:"7px 10px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--err)"}}>
               <i className="ti ti-trash"/>
             </button>
           )}
@@ -946,13 +973,17 @@ function App(){
           </div>
         )}
 
-        {trips.map((t,i)=>(
-          <div key={t.id} style={S.card}>
+        {displayTrips.map((t,i)=>(
+          <div key={t.id} style={{...S.card,
+            border:`${t.needsFix?"1.5px":"0.5px"} solid ${t.needsFix?"var(--warn-bd)":"var(--bdr)"}`,
+            background:t.needsFix?"var(--warn-bg)":"var(--bg)",
+          }}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
               <div style={{flex:1,minWidth:0}}>
-                <p style={{fontSize:11,color:"var(--txt3)",margin:"0 0 2px"}}>
-                  #{i+1}　{t.pTime}{t.dTime?` → ${t.dTime}`:""}{t.jitsu?` (${t.jitsu})`:""}
-                  {FORM_ID&&<span style={{marginLeft:6,color:t.synced?"var(--ok)":"var(--warn)"}}>{t.synced?"●":"○"}</span>}
+                <p style={{fontSize:11,color:t.needsFix?"var(--warn)":"var(--txt3)",margin:"0 0 2px",fontWeight:t.needsFix?500:400}}>
+                  #{trips.indexOf(t)+1}　{t.pTime}{t.dTime?` → ${t.dTime}`:""}{t.jitsu?` (${t.jitsu})`:""}
+                  {t.needsFix&&<span style={{marginLeft:6}}>🚩 要修正</span>}
+                  {FORM_ID&&!t.needsFix&&<span style={{marginLeft:6,color:t.synced?"var(--ok)":"var(--warn)"}}>{t.synced?"●":"○"}</span>}
                 </p>
                 <p style={{fontSize:14,fontWeight:500,margin:"0 0 4px",lineHeight:1.5}}>
                   <span style={{color:"var(--txt2)"}}>{t.pWard||"—"}</span>{t.pArea}
@@ -971,10 +1002,27 @@ function App(){
                   {t.kotei!=="N"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--info)"}}>{t.kotei}({KOTEI_LABELS[t.kotei]})</span>}
                 </div>
                 {t.memo&&<p style={{fontSize:12,color:"var(--txt3)",margin:"4px 0 0",lineHeight:1.4}}>{t.memo}</p>}
+                {/* 要修正メモ欄（フラグON時のみ）*/}
+                {t.needsFix&&(
+                  <textarea
+                    value={t.fixNote||""}
+                    onChange={e=>setFixNote(t.id,e.target.value)}
+                    placeholder="何を修正するか（例：料金を¥2,400→¥2,600に）"
+                    rows={2}
+                    style={{...S.inp,marginTop:8,padding:"7px 9px",fontSize:13,
+                            lineHeight:1.5,border:"0.5px solid var(--warn-bd)",
+                            background:"var(--bg)",color:"var(--txt)"}}
+                  />
+                )}
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
                 <p style={{fontSize:18,fontWeight:500,margin:"0 0 4px"}}>¥{t.fare.toLocaleString()}</p>
                 <div style={{display:"flex",gap:0,justifyContent:"flex-end"}}>
+                  <button onClick={()=>toggleFix(t.id)} title={t.needsFix?"修正済みにする":"要修正フラグをつける"}
+                    style={{background:"none",border:"none",cursor:"pointer",
+                            color:t.needsFix?"var(--warn)":"var(--txt3)",fontSize:15,padding:"3px 5px"}}>
+                    <i className={t.needsFix?"ti ti-flag-3":"ti ti-flag"}/>
+                  </button>
                   <button onClick={()=>{resetTripForm(t);setScreen("form");}} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-edit"/></button>
                   <button onClick={()=>setTrips(ts=>ts.filter(x=>x.id!==t.id))} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-trash"/></button>
                 </div>
@@ -983,22 +1031,45 @@ function App(){
           </div>
         ))}
 
-        {kuutens.map(k=>(
-          <div key={k.id} style={{...S.card,border:"0.5px solid var(--err-bd)",background:"var(--err-bg)"}}>
+        {displayKuutens.map(k=>(
+          <div key={k.id} style={{
+            ...S.card,
+            border:`${k.needsFix?"1.5px":"0.5px"} solid ${k.needsFix?"var(--warn-bd)":"var(--err-bd)"}`,
+            background:k.needsFix?"var(--warn-bg)":"var(--err-bg)",
+          }}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
               <div style={{flex:1}}>
-                <p style={{fontSize:11,color:"var(--err)",margin:"0 0 2px",fontWeight:500}}>
+                <p style={{fontSize:11,color:k.needsFix?"var(--warn)":"var(--err)",margin:"0 0 2px",fontWeight:500}}>
                   空転 {k.kType==="A"?"【迎車キャンセル】":"【メーター空転】"}　{k.time}
+                  {k.needsFix&&<span style={{marginLeft:6}}>🚩 要修正</span>}
                 </p>
                 <p style={{fontSize:14,color:"var(--txt)",margin:"0 0 2px"}}>
                   <span style={{color:"var(--txt2)"}}>{k.ward||"—"}</span>{k.area}
                   {k.lat&&<i className="ti ti-map-pin" style={{fontSize:10,color:"var(--ok)",marginLeft:3}}/>}
                 </p>
                 {k.memo&&<p style={{fontSize:12,color:"var(--txt3)",margin:"2px 0 0"}}>{k.memo}</p>}
+                {k.needsFix&&(
+                  <textarea
+                    value={k.fixNote||""}
+                    onChange={e=>setKFixNote(k.id,e.target.value)}
+                    placeholder="何を修正するか"
+                    rows={2}
+                    style={{...S.inp,marginTop:8,padding:"7px 9px",fontSize:13,
+                            lineHeight:1.5,border:"0.5px solid var(--warn-bd)",
+                            background:"var(--bg)",color:"var(--txt)"}}
+                  />
+                )}
               </div>
               <div style={{textAlign:"right",flexShrink:0}}>
-                <p style={{fontSize:18,fontWeight:500,color:"var(--err)",margin:"0 0 4px"}}>−¥{k.fare.toLocaleString()}</p>
-                <button onClick={()=>setKuutens(ks=>ks.filter(x=>x.id!==k.id))} style={{background:"none",border:"none",cursor:"pointer",color:"var(--err)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-trash"/></button>
+                <p style={{fontSize:18,fontWeight:500,color:k.needsFix?"var(--warn)":"var(--err)",margin:"0 0 4px"}}>−¥{k.fare.toLocaleString()}</p>
+                <div style={{display:"flex",gap:0,justifyContent:"flex-end"}}>
+                  <button onClick={()=>toggleKFix(k.id)} title={k.needsFix?"修正済みにする":"要修正フラグをつける"}
+                    style={{background:"none",border:"none",cursor:"pointer",
+                            color:k.needsFix?"var(--warn)":"var(--txt3)",fontSize:15,padding:"3px 5px"}}>
+                    <i className={k.needsFix?"ti ti-flag-3":"ti ti-flag"}/>
+                  </button>
+                  <button onClick={()=>setKuutens(ks=>ks.filter(x=>x.id!==k.id))} style={{background:"none",border:"none",cursor:"pointer",color:k.needsFix?"var(--warn)":"var(--err)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-trash"/></button>
+                </div>
               </div>
             </div>
           </div>
