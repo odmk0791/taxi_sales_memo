@@ -571,7 +571,7 @@ function App(){
 
   /* ── 保存 ── */
   const saveTrip=async()=>{
-    if(!fare)return;
+    if(!fare||!fp||!fd||!fpWard||!fdWard)return;
     const isEdit=!!editId;
     const origTrip=isEdit?trips.find(t=>t.id===editId):null;
     const origSynced=origTrip?.synced||false;
@@ -1283,14 +1283,31 @@ function App(){
             style={{...S.inp,padding:"8px 10px",lineHeight:1.6}}/>
         </div>
 
-        <button onClick={saveTrip} disabled={!fare||sending} style={{
-          width:"100%",padding:14,background:"var(--bg)",border:"0.5px solid var(--bdr2)",
-          borderRadius:"var(--rl)",fontSize:16,fontWeight:500,
-          cursor:fare&&!sending?"pointer":"default",
-          color:"var(--txt)",opacity:fare&&!sending?1:0.4,marginTop:4
-        }}>
-          {sending?"送信中…":(FORM_ID?"✓ 保存してシートへ送信":"✓ 保存する")}
-        </button>
+        {/* 必須項目チェック */}
+        {(()=>{
+          const missing=[];
+          if(!fp) missing.push("乗車時間");
+          if(!fd) missing.push("降車時間");
+          if(!fpWard) missing.push("乗車地");
+          if(!fdWard) missing.push("降車地");
+          if(!fare) missing.push("料金");
+          const canSave=missing.length===0&&!sending;
+          return(<>
+            {missing.length>0&&(
+              <p style={{fontSize:12,color:"var(--err)",margin:"0 0 8px",padding:"8px 12px",background:"var(--err-bg)",borderRadius:"var(--r)"}}>
+                未入力：{missing.join("・")}
+              </p>
+            )}
+            <button onClick={saveTrip} disabled={!canSave} style={{
+              width:"100%",padding:14,background:"var(--bg)",border:"0.5px solid var(--bdr2)",
+              borderRadius:"var(--rl)",fontSize:16,fontWeight:500,
+              cursor:canSave?"pointer":"default",
+              color:"var(--txt)",opacity:canSave?1:0.4,marginTop:4
+            }}>
+              {sending?"送信中…":(FORM_ID?"✓ 保存してシートへ送信":"✓ 保存する")}
+            </button>
+          </>);
+        })()}
         <button onClick={()=>{clearDraft();setScreen("log");}} style={{width:"100%",padding:12,background:"none",border:"none",fontSize:14,cursor:"pointer",color:"var(--txt2)",marginTop:4}}>キャンセル（下書き破棄）</button>
       </div>
     </div>
