@@ -174,15 +174,17 @@ function haversine(lat1,lon1,lat2,lon2){
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
-/* ── DBから緯度・経度を読む（複数の列名に対応）── */
+/* ── DBから緯度・経度を読む（列名不問・東京圏の値範囲で自動検出）── */
 function extractLatLng(row){
-  const lat = parseFloat(
-    row["緯度"]||row["lat"]||row["latitude"]||row["Lat"]||row["LAT"]||""
-  );
-  const lng = parseFloat(
-    row["経度"]||row["lng"]||row["longitude"]||row["Lng"]||row["LON"]||row["lon"]||""
-  );
-  return (isNaN(lat)||isNaN(lng)) ? null : {lat,lng};
+  /* まず列名で探す */
+  const lat0=parseFloat(row["緯度"]||row["lat"]||row["latitude"]||row["Lat"]||row["LAT"]||"");
+  const lng0=parseFloat(row["経度"]||row["lng"]||row["longitude"]||row["Lng"]||row["LON"]||row["lon"]||"");
+  if(!isNaN(lat0)&&!isNaN(lng0))return{lat:lat0,lng:lng0};
+  /* 列名が違う場合：値の範囲で判定（緯度34〜36、経度138〜141）*/
+  const nums=Object.values(row).map(v=>parseFloat(v)).filter(v=>!isNaN(v));
+  const lat=nums.find(v=>v>=34&&v<=36);
+  const lng=nums.find(v=>v>=138&&v<=141);
+  return(lat&&lng)?{lat,lng}:null;
 }
 
 /* ── GPS：最寄り地点を検索 ── */
