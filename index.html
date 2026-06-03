@@ -401,9 +401,9 @@ function App(){
   const [kosouku,setKosouku]=useState("");
   /* 休憩管理 */
   const [breaks,setBreaks]=useState(()=>{try{return JSON.parse(localStorage.getItem(BREAK_STORE_KEY)||"[]");}catch{return[];}});
-  const [breakStart,setBreakStart]=useState(null);   /* 休憩開始時刻（シフト時刻）*/
-  const [breakStartTs,setBreakStartTs]=useState(null); /* 開始のDate.now() */
-  const [elapsed,setElapsed]=useState(0);            /* 経過秒数 */
+  const [breakStart,setBreakStart]=useState(()=>localStorage.getItem("eimu_break_start")||null);
+  const [breakStartTs,setBreakStartTs]=useState(()=>{const v=localStorage.getItem("eimu_break_ts");return v?parseInt(v):null;});
+  const [elapsed,setElapsed]=useState(()=>{const v=localStorage.getItem("eimu_break_ts");return v?Math.floor((Date.now()-parseInt(v))/1000):0;});
   const [sendResult,setSendResult]=useState(null);
 
   /* ── 乗車記録フォーム ── */
@@ -632,9 +632,11 @@ function App(){
 
   /* ── 休憩開始 ── */
   const startBreak=()=>{
-    setBreakStart(getShiftNow());
-    setBreakStartTs(Date.now());
-    setElapsed(0);
+    const now=getShiftNow();
+    const ts=Date.now();
+    setBreakStart(now); setBreakStartTs(ts); setElapsed(0);
+    localStorage.setItem("eimu_break_start",now);
+    localStorage.setItem("eimu_break_ts",String(ts));
   };
 
   /* ── 休憩終了 ── */
@@ -650,6 +652,8 @@ function App(){
     rec.synced=ok;
     setBreaks(bs=>[...bs,rec]);
     setBreakStart(null); setBreakStartTs(null); setElapsed(0);
+    localStorage.removeItem("eimu_break_start");
+    localStorage.removeItem("eimu_break_ts");
   };
   const doExport=()=>{
     const h="日付,曜日,乗車時間,降車時間,実車時間,乗車地：市区,乗車地：地名,乗車地：緯度,乗車地：経度,降車地：市区,降車地：地名,降車地：緯度,降車地：経度,料金,アカウント,ステータス,支払,サンキュー,固定客,優先パス,イースタン氏名,メモ";
