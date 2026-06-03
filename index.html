@@ -399,6 +399,9 @@ function App(){
   const [sending,setSending]=useState(false);
   const [nokinCopied,setNokinCopied]=useState(false);
   const [kosouku,setKosouku]=useState("");
+  /* 休憩手動入力用 */
+  const [manualBS,setManualBS]=useState("");
+  const [manualBE,setManualBE]=useState("");
   /* 休憩管理 */
   const [breaks,setBreaks]=useState(()=>{try{return JSON.parse(localStorage.getItem(BREAK_STORE_KEY)||"[]");}catch{return[];}});
   const [breakStart,setBreakStart]=useState(()=>localStorage.getItem("eimu_break_start")||null);
@@ -655,6 +658,23 @@ function App(){
     localStorage.removeItem("eimu_break_start");
     localStorage.removeItem("eimu_break_ts");
   };
+
+  /* ── 休憩手動保存 ── */
+  const saveManualBreak=async()=>{
+    if(!manualBS||!manualBE)return;
+    const toM=t=>{const[h,m]=t.split(":").map(Number);return h*60+m;};
+    let diff=toM(manualBE)-toM(manualBS);
+    if(diff<0)diff+=24*60;
+    const minutes=Math.round(diff);
+    if(minutes<=0)return;
+    const rec={id:Date.now(),date:getShiftDate(),startTime:manualBS,endTime:manualBE,minutes,memo:"（手動入力）",synced:false};
+    const ok=await submitBreakToForm(rec);
+    rec.synced=ok;
+    setBreaks(bs=>[...bs,rec]);
+    setManualBS(""); setManualBE("");
+    setScreen("log");
+  };
+
   const doExport=()=>{
     const h="日付,曜日,乗車時間,降車時間,実車時間,乗車地：市区,乗車地：地名,乗車地：緯度,乗車地：経度,降車地：市区,降車地：地名,降車地：緯度,降車地：経度,料金,アカウント,ステータス,支払,サンキュー,固定客,優先パス,イースタン氏名,メモ";
     const rows=trips.map(t=>[
@@ -840,6 +860,53 @@ function App(){
               納金機の表示と一致すれば完了
             </p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ════════════════════════════════
+     休憩手動入力画面
+  ════════════════════════════════ */
+  if(screen==="break_manual"){
+    const toM=t=>{if(!t)return null;const[h,m]=t.split(":").map(Number);return h*60+m;};
+    const pm=toM(manualBS),dm=toM(manualBE);
+    let previewMins=null;
+    if(pm!=null&&dm!=null){let d=dm-pm;if(d<0)d+=24*60;previewMins=Math.round(d);}
+    return(
+      <div style={S.wrap}>
+        <div style={{...S.hdr,gap:10}}>
+          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+          <p style={{fontSize:16,fontWeight:500,margin:0,color:"var(--ok)"}}>休憩を手動入力</p>
+        </div>
+        <div style={S.body}>
+          <p style={{fontSize:12,color:"var(--txt3)",margin:"0 0 12px",padding:"8px 12px",background:"var(--bg2)",borderRadius:"var(--r)"}}>
+            押し忘れや画面が閉じた場合など、時刻を直接入力して記録できます
+          </p>
+
+          <div style={S.card}>
+            <label style={S.lbl}>開始時刻（深夜は25:xx形式も可）</label>
+            <TimeRow label="" val={manualBS} set={setManualBS}/>
+          </div>
+
+          <div style={S.card}>
+            <label style={S.lbl}>終了時刻</label>
+            <TimeRow label="" val={manualBE} set={setManualBE}/>
+            {previewMins!=null&&previewMins>0&&(
+              <p style={{fontSize:13,color:"var(--ok)",marginTop:6}}>
+                → {previewMins}分の休憩
+              </p>
+            )}
+          </div>
+
+          <button onClick={saveManualBreak}
+            disabled={!manualBS||!manualBE||previewMins<=0}
+            style={{width:"100%",padding:14,background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",borderRadius:"var(--rl)",fontSize:16,fontWeight:500,cursor:"pointer",color:"var(--ok)",marginTop:4,opacity:(!manualBS||!manualBE||previewMins<=0)?0.4:1}}>
+            保存する
+          </button>
+          <button onClick={()=>setScreen("log")} style={{width:"100%",padding:12,background:"none",border:"none",fontSize:14,cursor:"pointer",color:"var(--txt2)",marginTop:4}}>
+            キャンセル
+          </button>
         </div>
       </div>
     );
@@ -1247,8 +1314,7 @@ function App(){
         )}
 
         {/* 休憩中バナー */}
-        {breakStart&&(
-          <div style={{background:"var(--ok-bg)",border:"1.5px solid var(--ok-bd)",borderRadius:"var(--rl)",padding:"12px 14px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        {breakStart&&(          <div style={{background:"var(--ok-bg)",border:"1.5px solid var(--ok-bd)",borderRadius:"var(--rl)",padding:"12px 14px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
               <p style={{fontSize:12,color:"var(--ok)",fontWeight:500,margin:"0 0 2px"}}>
                 <i className="ti ti-coffee" style={{fontSize:12,marginRight:4}}/>休憩中　{breakStart}〜
@@ -1264,6 +1330,13 @@ function App(){
         )}
 
         {/* 休憩サマリー（完了分）*/}
+        {breaks.length===0&&!breakStart&&(
+          <div style={{textAlign:"right",marginBottom:4}}>
+            <button onClick={()=>{setManualBS("");setManualBE("");setScreen("break_manual");}} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ok)",fontSize:12,padding:"4px 0"}}>
+              <i className="ti ti-coffee" style={{marginRight:4}}/>手動で休憩を入力
+            </button>
+          </div>
+        )}
         {breaks.length>0&&(
           <div style={{...S.card,marginBottom:10,borderLeft:"3px solid var(--ok)"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
@@ -1280,7 +1353,7 @@ function App(){
             </div>
             {breaks.map((b,i)=>(
               <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,color:"var(--txt2)",padding:"3px 0",borderTop:i>0?"0.5px solid var(--bdr)":"none"}}>
-                <span>{i+1}回目　{b.startTime}–{b.endTime}</span>
+                <span>{i+1}回目　{b.startTime}–{b.endTime}{b.memo?.includes("手動")?" ✎":""}</span>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   <span style={{fontFamily:"var(--mono)"}}>{b.minutes}分</span>
                   <button onClick={()=>setBreaks(bs=>bs.filter(x=>x.id!==b.id))} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:13,padding:"1px 3px"}}>
@@ -1289,6 +1362,11 @@ function App(){
                 </div>
               </div>
             ))}
+            <div style={{borderTop:"0.5px solid var(--bdr)",paddingTop:6,marginTop:4}}>
+              <button onClick={()=>{setManualBS("");setManualBE("");setScreen("break_manual");}} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ok)",fontSize:12,padding:0}}>
+                ＋ 手動で追加
+              </button>
+            </div>
           </div>
         )}
 
