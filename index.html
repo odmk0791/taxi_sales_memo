@@ -399,6 +399,7 @@ function App(){
   const [sending,setSending]=useState(false);
   const [nokinCopied,setNokinCopied]=useState(false);
   const [kosouku,setKosouku]=useState("");
+  const [hasDraft,setHasDraft]=useState(()=>!!localStorage.getItem("eimu_form_draft"));
   /* 休憩手動入力用 */
   const [manualBS,setManualBS]=useState("");
   const [manualBE,setManualBE]=useState("");
@@ -445,6 +446,18 @@ function App(){
   useEffect(()=>{try{localStorage.setItem(STORE_KEY,JSON.stringify(trips));}catch{}},[trips]);
   useEffect(()=>{try{localStorage.setItem(KUUTEN_KEY,JSON.stringify(kuutens));}catch{}},[kuutens]);
   useEffect(()=>{try{localStorage.setItem(BREAK_STORE_KEY,JSON.stringify(breaks));}catch{}},[breaks]);
+
+  /* フォーム下書き自動保存（フォーム画面中に何か入力があれば保存）*/
+  useEffect(()=>{
+    if(screen!=="form")return;
+    if(!fp&&!fare&&!fpWard)return; /* 空フォームは保存しない */
+    const d={editId,formDate,fp,fd,fpWard,fpArea,fpLat,fpLng,
+             fdWard,fdArea,fdLat,fdLng,fare,pay,acc,stat,
+             sankyu,kotei,yuusen,easternName,memo};
+    localStorage.setItem("eimu_form_draft",JSON.stringify(d));
+    setHasDraft(true);
+  },[screen,fp,fare,fpWard,fpArea,fdWard,fdArea,fd,formDate,
+     fpLat,fpLng,fdLat,fdLng,pay,acc,stat,sankyu,kotei,yuusen,easternName,memo,editId]);
 
   /* 休憩タイマー */
   useEffect(()=>{
@@ -617,6 +630,7 @@ function App(){
       setSending(false);
     }
     setTrips(ts=>isEdit?ts.map(t=>t.id===editId?trip:t):[...ts,trip]);
+    clearDraft();
     setScreen("log");
   };
 
@@ -675,6 +689,31 @@ function App(){
     setScreen("log");
   };
 
+  /* ── 下書き復元 ── */
+  const restoreDraft=()=>{
+    try{
+      const d=JSON.parse(localStorage.getItem("eimu_form_draft")||"{}");
+      setEditId(d.editId||null);
+      setFormDate(d.formDate||getShiftDate());
+      setFp(d.fp||""); setFd(d.fd||"");
+      setFpWard(d.fpWard||""); setFpArea(d.fpArea||"");
+      setFpLat(d.fpLat||null); setFpLng(d.fpLng||null);
+      setFdWard(d.fdWard||""); setFdArea(d.fdArea||"");
+      setFdLat(d.fdLat||null); setFdLng(d.fdLng||null);
+      setFare(d.fare||""); setPay(d.pay||"GO Pay");
+      setAcc(d.acc||"専用"); setStat(d.stat||"GO");
+      setSankyu(d.sankyu||"通常"); setKotei(d.kotei||"N");
+      setYuusen(d.yuusen||false);
+      setEasternName(d.easternName||""); setMemo(d.memo||"");
+      setScreen("form");
+    }catch{}
+  };
+  const clearDraft=()=>{
+    localStorage.removeItem("eimu_form_draft");
+    setHasDraft(false);
+  };
+
+  /* ── CSV エクスポート ── */
   const doExport=()=>{
     const h="日付,曜日,乗車時間,降車時間,実車時間,乗車地：市区,乗車地：地名,乗車地：緯度,乗車地：経度,降車地：市区,降車地：地名,降車地：緯度,降車地：経度,料金,アカウント,ステータス,支払,サンキュー,固定客,優先パス,イースタン氏名,メモ";
     const rows=trips.map(t=>[
@@ -1234,7 +1273,7 @@ function App(){
         }}>
           {sending?"送信中…":(FORM_ID?"✓ 保存してシートへ送信":"✓ 保存する")}
         </button>
-        <button onClick={()=>setScreen("log")} style={{width:"100%",padding:12,background:"none",border:"none",fontSize:14,cursor:"pointer",color:"var(--txt2)",marginTop:4}}>キャンセル</button>
+        <button onClick={()=>{clearDraft();setScreen("log");}} style={{width:"100%",padding:12,background:"none",border:"none",fontSize:14,cursor:"pointer",color:"var(--txt2)",marginTop:4}}>キャンセル（下書き破棄）</button>
       </div>
     </div>
   );
@@ -1310,6 +1349,24 @@ function App(){
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* 下書きバナー */}
+        {hasDraft&&(
+          <div style={{background:"var(--warn-bg)",border:"1.5px solid var(--warn-bd)",borderRadius:"var(--rl)",padding:"10px 14px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <p style={{fontSize:13,fontWeight:500,color:"var(--warn)",margin:"0 0 2px"}}>入力中の下書きがあります</p>
+              <p style={{fontSize:11,color:"var(--txt3)",margin:0}}>乗車時刻・場所などが保存されています</p>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={restoreDraft} style={{padding:"7px 12px",background:"var(--warn-bg)",border:"1px solid var(--warn)",borderRadius:"var(--r)",fontSize:13,fontWeight:500,cursor:"pointer",color:"var(--warn)"}}>
+                復元
+              </button>
+              <button onClick={clearDraft} style={{padding:"7px 10px",background:"none",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--txt3)"}}>
+                破棄
+              </button>
+            </div>
           </div>
         )}
 
