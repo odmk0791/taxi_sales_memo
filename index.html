@@ -426,6 +426,7 @@ function App(){
   const [yuusen,setYuusen]=useState(false);
   const [easternName,setEasternName]=useState("");
   const [memo,setMemo]=useState("");
+  const [custType,setCustType]=useState("日本人"); /* 客種別 */
 
   /* ── 空転フォーム ── */
   const [kType,setKType]=useState("A");
@@ -560,6 +561,7 @@ function App(){
     setKotei(t?t.kotei:"N"); setYuusen(t?t.yuusen:false);
     setEasternName(t?t.easternName||"":"");
     setMemo(t?t.memo||"":"");
+    setCustType(t?t.custType||"日本人":"日本人");
   };
   const resetKuutenForm=()=>{
     setKType("A");setKTime("");
@@ -581,7 +583,7 @@ function App(){
       fare:parseInt(fare.replace(/[^0-9]/g,""))||0,
       pay, acc, stat, sankyu, kotei, yuusen,
       easternName:pay==="イースタン"?easternName:"",
-      memo, synced:origSynced,
+      memo, custType, synced:origSynced,
       needsFix:origTrip?.needsFix||false,
       fixNote:origTrip?.fixNote||"",
     };
@@ -1258,6 +1260,22 @@ function App(){
             label="優先パス" sub="該当する場合のみON（約20件に1回）" color="var(--warn)"/>
         </div>
 
+        {/* 客種別 */}
+        <div style={S.card}>
+          <label style={S.lbl}>客種別</label>
+          <div style={{display:"flex",gap:8,marginTop:4}}>
+            {["日本人","インバウンド"].map(t=>(
+              <button key={t} onClick={()=>setCustType(t)} style={{
+                flex:1,padding:"10px",borderRadius:"var(--r)",cursor:"pointer",fontSize:14,
+                border:`0.5px solid ${custType===t?(t==="インバウンド"?"var(--warn-bd)":"var(--info-bd)"):"var(--bdr)"}`,
+                background:custType===t?(t==="インバウンド"?"var(--warn-bg)":"var(--info-bg)"):"var(--bg)",
+                color:custType===t?(t==="インバウンド"?"var(--warn)":"var(--info)"):"var(--txt2)",
+                fontWeight:custType===t?500:400,
+              }}>{t}</button>
+            ))}
+          </div>
+        </div>
+
         <div style={S.card}>
           <label style={S.lbl}>メモ・備忘録</label>
           <textarea value={memo} onChange={e=>setMemo(e.target.value)} rows={3}
@@ -1460,6 +1478,7 @@ function App(){
                   {t.acc!=="専用"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--txt3)"}}>{t.acc}</span>}
                   {t.sankyu!=="通常"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--warn)"}}>{t.sankyu}</span>}
                   {t.kotei!=="N"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--info)"}}>{t.kotei}({KOTEI_LABELS[t.kotei]})</span>}
+                  {t.custType==="インバウンド"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--warn-bd)",color:"var(--warn)",background:"var(--warn-bg)"}}>🌍 インバウンド</span>}
                 </div>
                 {t.memo&&<p style={{fontSize:12,color:"var(--txt3)",margin:"4px 0 0",lineHeight:1.4}}>{t.memo}</p>}
                 {/* 要修正メモ欄（フラグON時のみ）*/}
