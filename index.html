@@ -356,13 +356,22 @@ function LocBtn({ward,area,lat,lng,onClick}){
   </button>;
 }
 
+function fmtTimeInput(val){
+  /* 数字のみ抽出、最大4桁 */
+  const d=val.replace(/[^0-9]/g,"").slice(0,4);
+  if(d.length<=2)return d;
+  return d.slice(0,2)+":"+d.slice(2);
+}
+
 function TimeRow({label,val,set,jitsuLabel}){
   return <div style={{marginBottom:10}}>
     <p style={{fontSize:11,color:jitsuLabel?"var(--info)":"var(--txt3)",margin:"0 0 4px"}}>
       {label}{jitsuLabel?` （実車 ${jitsuLabel}）`:""}
     </p>
     <div style={{display:"flex",gap:8,alignItems:"center"}}>
-      <input value={val} onChange={e=>set(e.target.value)} placeholder="HH:MM" maxLength={5}
+      <input type="tel" value={val}
+        onChange={e=>set(fmtTimeInput(e.target.value))}
+        placeholder="HH:MM"
         style={{...S.inp,width:100,fontSize:22,fontFamily:"var(--mono)",textAlign:"center",
                 padding:"8px 6px",flexShrink:0}}/>
       <button onClick={()=>set(getShiftNow())} style={{
