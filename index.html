@@ -860,7 +860,7 @@ function App(){
                   <span style={{fontSize:13,color:"var(--txt2)"}}>
                     売上 ¥{grouped.cash.total.toLocaleString()} +
                   </span>
-                  <input type="text" inputMode="numeric" pattern="[0-9]*" value={kosouku}
+                  <input type="tel" value={kosouku}
                     onChange={e=>setKosouku(e.target.value)}
                     placeholder="0"
                     style={{...S.inp,width:90,fontFamily:"var(--mono)",textAlign:"right",padding:"6px 8px",fontSize:15}}
@@ -1137,7 +1137,7 @@ function App(){
                 </button>
               ))}
             </div>
-            <input type="text" inputMode="numeric" pattern="[0-9]*" value={kFare} onChange={e=>setKFare(e.target.value)}
+            <input type="tel" value={kFare} onChange={e=>setKFare(e.target.value)}
               placeholder="金額" style={{...S.inp,fontFamily:"var(--mono)",textAlign:"right"}}/>
           </div>
         )}
@@ -1211,7 +1211,7 @@ function App(){
 
         <div style={S.card}>
           <label style={S.lbl}>料金（円）</label>
-          <input type="text" inputMode="numeric" pattern="[0-9]*" value={fare} onChange={e=>setFare(e.target.value)} placeholder="0"
+          <input type="tel" value={fare} onChange={e=>setFare(e.target.value)} placeholder="0"
             style={{...S.inp,fontSize:28,fontFamily:"var(--mono)",textAlign:"right",padding:"10px 12px"}}/>
         </div>
 
