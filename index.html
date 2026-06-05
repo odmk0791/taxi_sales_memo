@@ -1031,7 +1031,7 @@ function App(){
   };
 
   /* ── シフトメモ自動保存 ── */
-  useEffect(()=>{localStorage.setItem("eimu_shift_memo",shiftMemo);},[shiftMemo]);
+  useEffect(()=>{window.scrollTo(0,0);},[screen]);
 
   const insertTime=()=>{
     const ts=`[${getShiftNow()}] `;
