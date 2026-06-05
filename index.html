@@ -518,7 +518,7 @@ const S={
   hdr:  {background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)",padding:"11px 14px",
          display:"flex",alignItems:"center",justifyContent:"space-between",
          position:"sticky",top:0,zIndex:10},
-  body: {padding:"10px 12px 210px"},
+  body: {padding:"10px 12px 90px"},
   card: {background:"var(--bg)",borderRadius:"var(--rl)",border:"0.5px solid var(--bdr)",
          padding:"11px 13px",marginBottom:8},
   lbl:  {fontSize:12,color:"var(--txt2)",margin:"0 0 5px",display:"block"},
@@ -529,15 +529,13 @@ const S={
          background:"var(--bg)",border:"0.5px solid var(--bdr2)",fontSize:26,
          cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
          color:"var(--txt)",zIndex:20,boxShadow:"0 2px 12px rgba(0,0,0,.15)"},
-  fab2: {position:"fixed",bottom:86,right:20,height:38,padding:"0 14px",borderRadius:19,
-         background:"var(--err-bg)",border:"0.5px solid var(--err-bd)",
-         cursor:"pointer",display:"flex",alignItems:"center",gap:5,
-         color:"var(--err)",zIndex:20,fontSize:13,fontWeight:500,
-         boxShadow:"0 2px 8px rgba(0,0,0,.10)"},
-  fab3: {position:"fixed",bottom:134,right:20,height:38,padding:"0 14px",borderRadius:19,
-         cursor:"pointer",display:"flex",alignItems:"center",gap:5,
-         zIndex:20,fontSize:13,fontWeight:500,
-         boxShadow:"0 2px 8px rgba(0,0,0,.10)"},
+  bottomBar:{position:"fixed",bottom:0,left:0,right:0,maxWidth:480,margin:"0 auto",
+             height:64,background:"var(--bg)",borderTop:"0.5px solid var(--bdr)",
+             display:"flex",alignItems:"stretch",zIndex:20,
+             paddingBottom:"env(safe-area-inset-bottom,0px)"},
+  bbBtn:{flex:1,display:"flex",flexDirection:"column",alignItems:"center",
+         justifyContent:"center",gap:3,border:"none",background:"none",
+         cursor:"pointer",fontSize:11,fontWeight:500},
 };
 
 /* ══════════════════════════════════════
@@ -1870,56 +1868,54 @@ function App(){
       </div>
       <div style={S.body}>
 
-        {/* ⚡ 乗車時刻・現在地ワンタップ取得 */}
-        {!editId&&(
-          <button onClick={capturePickup} disabled={fpCapturing} style={{
-            width:"100%",padding:"14px",marginBottom:10,
-            background:fpCapturing?"var(--bg2)":(fp&&fpWard)?"var(--ok-bg)":"var(--info-bg)",
-            border:`1.5px solid ${fpCapturing?"var(--bdr)":(fp&&fpWard)?"var(--ok-bd)":"var(--info-bd)"}`,
-            borderRadius:"var(--rl)",fontSize:15,fontWeight:500,cursor:fpCapturing?"default":"pointer",
-            color:fpCapturing?"var(--txt3)":(fp&&fpWard)?"var(--ok)":"var(--info)",
-            display:"flex",alignItems:"center",justifyContent:"center",gap:8,
-          }}>
-            <i className={`ti ${fpCapturing?"ti-loader-2":"ti-map-pin-bolt"}`}
-               style={{fontSize:18,animation:fpCapturing?"spin 1s linear infinite":""}}/>
-            {fpCapturing?"取得中…":(fp&&fpWard)?`✓ ${fp}　${fpWard}${fpArea}`:"⚡ 乗車時刻・現在地を一括取得"}
-          </button>
-        )}
-
+        {/* 日付 */}
         <div style={S.card}>
           <label style={S.lbl}>日付（自動：16時未満は前日扱い）</label>
           <input value={formDate} onChange={e=>setFormDate(e.target.value)} placeholder="YYYY/MM/DD" style={S.inp}/>
         </div>
 
-        <div style={S.card}>
-          <label style={S.lbl}>乗降時刻（深夜は自動で25:xx〜に変換）</label>
-          <TimeRow label="乗車" val={fp} set={setFp}/>
-          <TimeRow label="降車" val={fd} set={setFd} jitsuLabel={jitsu}/>
-        </div>
+        {/* ⚡ 乗車・降車ワンタップ取得（横並び）*/}
+        {!editId&&(
+          <div style={{display:"flex",gap:8,marginBottom:8}}>
+            {[
+              {label:"乗車",cap:capturePickup,loading:fpCapturing,done:fp&&fpWard,time:fp,ward:fpWard,area:fpArea,
+               bg:"var(--info-bg)",bd:"var(--info-bd)",cl:"var(--info)"},
+              {label:"降車",cap:captureDropoff,loading:fdCapturing,done:fd&&fdWard,time:fd,ward:fdWard,area:fdArea,
+               bg:"var(--warn-bg)",bd:"var(--warn-bd)",cl:"var(--warn)"},
+            ].map(({label,cap,loading,done,time,ward,area,bg,bd,cl})=>(
+              <button key={label} onClick={cap} disabled={loading} style={{
+                flex:1,padding:"14px 8px",
+                background:loading?"var(--bg2)":done?"var(--ok-bg)":bg,
+                border:`1.5px solid ${loading?"var(--bdr)":done?"var(--ok-bd)":bd}`,
+                borderRadius:"var(--rl)",cursor:loading?"default":"pointer",
+                color:loading?"var(--txt3)":done?"var(--ok)":cl,
+                display:"flex",flexDirection:"column",alignItems:"center",gap:5,
+              }}>
+                <div style={{display:"flex",alignItems:"center",gap:5,fontSize:15,fontWeight:600}}>
+                  <i className={`ti ${loading?"ti-loader-2":"ti-map-pin-bolt"}`}
+                     style={{fontSize:18,animation:loading?"spin 1s linear infinite":""}}/>
+                  {label}
+                </div>
+                <div style={{fontSize:11,textAlign:"center",lineHeight:1.4}}>
+                  {loading?"取得中…":done?<>{time}<br/>{ward}{area}</>:"タップして取得"}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
 
+        {/* 乗車・降車 時刻＋場所（手動修正用）*/}
         <div style={S.card}>
-          <label style={S.lbl}>乗車地</label>
-          <LocBtn ward={fpWard} area={fpArea} lat={fpLat} lng={fpLng} onClick={()=>openPicker("p")}/>
-        </div>
-
-        <div style={S.card}>
-          <label style={S.lbl}>降車地</label>
-          {/* ⚡ 降車一括取得 */}
-          {!editId&&(
-            <button onClick={captureDropoff} disabled={fdCapturing} style={{
-              width:"100%",padding:"11px",marginBottom:8,
-              background:fdCapturing?"var(--bg2)":(fd&&fdWard)?"var(--ok-bg)":"var(--warn-bg)",
-              border:`1px solid ${fdCapturing?"var(--bdr)":(fd&&fdWard)?"var(--ok-bd)":"var(--warn-bd)"}`,
-              borderRadius:"var(--r)",fontSize:14,fontWeight:500,cursor:fdCapturing?"default":"pointer",
-              color:fdCapturing?"var(--txt3)":(fd&&fdWard)?"var(--ok)":"var(--warn)",
-              display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-            }}>
-              <i className={`ti ${fdCapturing?"ti-loader-2":"ti-map-pin-bolt"}`}
-                 style={{fontSize:16,animation:fdCapturing?"spin 1s linear infinite":""}}/>
-              {fdCapturing?"取得中…":(fd&&fdWard)?`✓ ${fd}　${fdWard}${fdArea}`:"⚡ 降車時刻・現在地を一括取得"}
-            </button>
-          )}
-          <LocBtn ward={fdWard} area={fdArea} lat={fdLat} lng={fdLng} onClick={()=>openPicker("d")}/>
+          <div style={{marginBottom:12}}>
+            <label style={{...S.lbl,color:"var(--info)"}}>乗車</label>
+            <TimeRow label="時刻" val={fp} set={setFp}/>
+            <LocBtn ward={fpWard} area={fpArea} lat={fpLat} lng={fpLng} onClick={()=>openPicker("p")}/>
+          </div>
+          <div style={{borderTop:"0.5px solid var(--bdr)",paddingTop:12}}>
+            <label style={{...S.lbl,color:"var(--warn)"}}>降車</label>
+            <TimeRow label="時刻" val={fd} set={setFd} jitsuLabel={jitsu}/>
+            <LocBtn ward={fdWard} area={fdArea} lat={fdLat} lng={fdLng} onClick={()=>openPicker("d")}/>
+          </div>
         </div>
 
         <div style={S.card}>
@@ -2358,21 +2354,31 @@ function App(){
         ))}
       </div>
 
-      <button onClick={()=>{resetKuutenForm();setScreen("kuuten");}} style={S.fab2}>
-        <i className="ti ti-alert-triangle" style={{fontSize:14}}/>空転を記録
-      </button>
-      <button onClick={breakStart?endBreak:startBreak} style={{
-        ...S.fab3,
-        background:breakStart?"var(--ok)":"var(--ok-bg)",
-        border:`0.5px solid var(--ok-bd)`,
-        color:breakStart?"#fff":"var(--ok)",
-      }}>
-        <i className={`ti ${breakStart?"ti-player-stop":"ti-coffee"}`} style={{fontSize:14}}/>
-        {breakStart?`終了 ${formatElapsed(elapsed)}`:"休憩開始"}
-      </button>
-      <button onClick={()=>{resetTripForm();setScreen("form");}} style={S.fab}>
-        <i className="ti ti-plus"/>
-      </button>
+      {/* ボトムバー：乗車・空転・休憩 */}
+      <div style={S.bottomBar}>
+        <button onClick={breakStart?endBreak:startBreak} style={{
+          ...S.bbBtn,
+          color:breakStart?"var(--ok)":"var(--txt2)",
+          background:breakStart?"var(--ok-bg)":"none",
+        }}>
+          <i className={`ti ${breakStart?"ti-player-stop":"ti-coffee"}`} style={{fontSize:22}}/>
+          {breakStart?formatElapsed(elapsed):"休憩"}
+        </button>
+        <div style={{width:"0.5px",background:"var(--bdr)",alignSelf:"stretch",margin:"10px 0"}}/>
+        <button onClick={()=>{resetKuutenForm();setScreen("kuuten");}} style={{
+          ...S.bbBtn,color:"var(--err)"
+        }}>
+          <i className="ti ti-alert-triangle" style={{fontSize:22}}/>
+          空転
+        </button>
+        <div style={{width:"0.5px",background:"var(--bdr)",alignSelf:"stretch",margin:"10px 0"}}/>
+        <button onClick={()=>{resetTripForm();setScreen("form");}} style={{
+          ...S.bbBtn,color:"var(--info)"
+        }}>
+          <i className="ti ti-plus" style={{fontSize:26,fontWeight:300}}/>
+          乗車
+        </button>
+      </div>
 
       {/* シフトメモ モーダル */}
       {showMemo&&(
