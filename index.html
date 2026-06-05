@@ -101,6 +101,18 @@ const REST_FIELDS = {
 const BREAK_STORE_KEY  = "eimu_breaks_v1";
 const TARGET_BREAK_MINS = 150; /* 目標休憩時間（分）*/
 
+/* ── 日報フォーム設定 ── */
+const NIPPOU_FORM_ID="1FAIpQLSdJ2F5AeDKdXnN8GyCsx_gsGWRns1lO7PMZiuiUnoqihVMu5A";
+const NIPPOU_FIELDS={
+  date:"entry.1017854134", dow:"entry.758227427", nokin:"entry.41970535",
+  eishu:"entry.163375778", kaisu:"entry.159114153", handle:"entry.625208270",
+  kyukei:"entry.174204251", zensokou:"entry.450198441", jissha:"entry.966740574",
+  musen:"entry.311036871", shukkin:"entry.1817750255", taisha:"entry.989775496",
+  rank01:"entry.143976913", rank02:"entry.859283838", taxi:"entry.1351674827",
+  kurotaku:"entry.1827094756", deban:"entry.1795800053",
+};
+const SCAN_PROMPT=`あなたは日本のタクシードライバーの営業日報「運転者営業日報（点呼用）」を読み取るAIです。画像から以下の項目を正確に読み取り、JSONのみ返してください。説明不要。\n読み取り項目:\n- 日付: 年月日 例"2026/06/03"\n- 曜日: 漢字1文字 例"水"\n- 納金額: 数字のみ 納金明細欄の「納金額」 例"91650"\n- 営収: 数字のみ「営業収入」 例"80500"\n- 回数: 数字のみ「営業回数」 例"22"\n- ハンドル時間: 時間:分 例"17:36"\n- 休憩時間: 時間:分「全休憩時間」 例"2:40"\n- 全走行距離: 数字のみkm不要 例"312"\n- 実車走行距離: 数字のみkm不要 例"146"\n- 無線番号: 車番/シフト欄の数字 例"2084"\n出力:\n{"日付":"...","曜日":"...","納金額":"...","営収":"...","回数":"...","ハンドル時間":"...","休憩時間":"...","全走行距離":"...","実車走行距離":"...","無線番号":"..."}`;
+
 const LOC_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSpOj4QzyarqZtTDM5bld8QDEIzRodRLUwAfF8u42CbgTuGPoKqWrOKtw2Ddrhm0OnONlVnzwc8c1BX/pub?gid=657495537&single=true&output=csv";
 const STORE_KEY  = "eimu_trips_v2";
 const KUUTEN_KEY = "eimu_kuutens_v1";
@@ -487,6 +499,16 @@ async function submitBreakToForm(b){
   catch{return false;}
 }
 
+/* ── 日報フォーム送信 ── */
+async function submitNippouToForm(d){
+  if(!NIPPOU_FORM_ID)return false;
+  const url=`https://docs.google.com/forms/d/e/${NIPPOU_FORM_ID}/formResponse`;
+  const body=new FormData();
+  Object.entries(NIPPOU_FIELDS).forEach(([k,v])=>body.append(v,d[k]||""));
+  try{await fetch(url,{method:"POST",mode:"no-cors",body});return true;}
+  catch{return false;}
+}
+
 /* ══════════════════════════════════════
    スタイル定数
 ══════════════════════════════════════ */
@@ -625,6 +647,16 @@ function App(){
   const [locHistory,setLocHistory]=useState(()=>{
     try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||"[]");}catch{return[];}
   });
+  /* 日報スキャン */
+  const [nippouScreen,setNippouScreen]=useState("idle"); /* idle|scanning|form */
+  const [nScanError,setNScanError]=useState("");
+  const [nippouSending,setNippouSending]=useState(false);
+  const [nippouForm,setNippouForm]=useState({
+    date:"",dow:"",nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",
+    zensokou:"",jissha:"",musen:"",shukkin:"",taisha:"",
+    rank01:"",rank02:"",taxi:"JAP",kurotaku:"青",deban:"J",
+  });
+  const setNF=(field,val)=>setNippouForm(f=>({...f,[field]:val}));
   /* 休憩手動入力用 */
   const [manualBS,setManualBS]=useState("");
   const [manualBE,setManualBE]=useState("");
@@ -957,6 +989,44 @@ function App(){
     setHasDraft(false);
   };
 
+  /* ── 日報スキャン（AI読み取り）── */
+  const scanNippou=async(imgData,imgType)=>{
+    setNippouScreen("scanning"); setNScanError("");
+    try{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",max_tokens:1000,
+          messages:[{role:"user",content:[
+            {type:"image",source:{type:"base64",media_type:imgType,data:imgData}},
+            {type:"text",text:SCAN_PROMPT}
+          ]}]
+        })
+      });
+      const json=await res.json();
+      const text=json.content.map(i=>i.text||"").join("");
+      const p=JSON.parse(text.replace(/```json|```/g,"").trim());
+      setNippouForm(f=>({...f,
+        date:p["日付"]||"",dow:p["曜日"]||"",nokin:p["納金額"]||"",
+        eishu:p["営収"]||"",kaisu:p["回数"]||"",handle:p["ハンドル時間"]||"",
+        kyukei:p["休憩時間"]||"",zensokou:p["全走行距離"]||"",
+        jissha:p["実車走行距離"]||"",musen:p["無線番号"]||"",
+      }));
+      setNippouScreen("form");
+    }catch{
+      setNScanError("読み取りに失敗しました。もう一度お試しください。");
+      setNippouScreen("idle");
+    }
+  };
+
+  const saveNippou=async()=>{
+    setNippouSending(true);
+    const ok=await submitNippouToForm(nippouForm);
+    setNippouSending(false);
+    if(ok){setNippouScreen("idle");setScreen("log");}
+    else alert("送信に失敗しました");
+  };
+
   /* ── CSV エクスポート ── */
   const doExport=()=>{
     const h="日付,曜日,乗車時間,降車時間,実車時間,乗車地：市区,乗車地：地名,乗車地：緯度,乗車地：経度,降車地：市区,降車地：地名,降車地：緯度,降車地：経度,料金,アカウント,ステータス,支払,サンキュー,固定客,優先パス,イースタン氏名,メモ";
@@ -1143,6 +1213,171 @@ function App(){
               納金機の表示と一致すれば完了
             </p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ════════════════════════════════
+     日報スキャン画面
+  ════════════════════════════════ */
+  if(screen==="nippou_scan"){
+    const canSave=nippouForm.date&&nippouForm.nokin&&!nippouSending;
+    const handleImg=e=>{
+      const file=e.target.files[0]; if(!file)return;
+      const reader=new FileReader();
+      reader.onload=()=>scanNippou(reader.result.split(",")[1],file.type);
+      reader.readAsDataURL(file);
+    };
+    return(
+      <div style={S.wrap}>
+        <div style={{...S.hdr,gap:10}}>
+          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+          <div>
+            <p style={{fontSize:16,fontWeight:500,margin:0}}>日報スキャン</p>
+            <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>写真を撮影してAIが自動読み取り</p>
+          </div>
+        </div>
+        <div style={S.body}>
+
+          {/* 撮影ボタン（idle・scanning共通）*/}
+          {nippouScreen!=="form"&&(
+            <>
+              {nScanError&&(
+                <p style={{fontSize:12,color:"var(--err)",marginBottom:10,padding:"8px 12px",background:"var(--err-bg)",borderRadius:"var(--r)"}}>
+                  {nScanError}
+                </p>
+              )}
+              <label style={{
+                display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                gap:10,padding:"32px 20px",
+                background:"var(--info-bg)",border:"1.5px dashed var(--info-bd)",
+                borderRadius:"var(--rl)",cursor:nippouScreen==="scanning"?"default":"pointer",
+                color:"var(--info)",
+              }}>
+                {nippouScreen==="scanning"
+                  ?<><i className="ti ti-loader-2" style={{fontSize:40,animation:"spin 1s linear infinite"}}/>
+                    <span style={{fontSize:14,fontWeight:500}}>読み取り中…</span></>
+                  :<><i className="ti ti-camera" style={{fontSize:40}}/>
+                    <span style={{fontSize:15,fontWeight:500}}>日報を撮影・選択</span>
+                    <span style={{fontSize:11,color:"var(--txt3)"}}>印刷された日報の右側（点呼用）を撮影</span></>
+                }
+                {nippouScreen==="idle"&&<input type="file" accept="image/*" capture="environment" onChange={handleImg} style={{display:"none"}}/>}
+              </label>
+            </>
+          )}
+
+          {/* 確認・入力フォーム */}
+          {nippouScreen==="form"&&(<>
+            <div style={{fontSize:12,color:"var(--ok)",marginBottom:10,padding:"8px 12px",background:"var(--ok-bg)",borderRadius:"var(--r)"}}>
+              ✓ 読み取り完了。内容を確認・修正してください
+            </div>
+
+            {/* OCR項目 */}
+            <div style={S.card}>
+              <p style={{fontSize:12,color:"var(--txt2)",fontWeight:500,margin:"0 0 10px"}}>
+                <i className="ti ti-camera" style={{marginRight:4}}/>日報から読み取り
+              </p>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {[
+                  {l:"日付",f:"date"},{l:"曜日",f:"dow"},
+                  {l:"納金額",f:"nokin"},{l:"営収",f:"eishu"},
+                  {l:"回数",f:"kaisu"},{l:"無線番号",f:"musen"},
+                  {l:"ハンドル時間",f:"handle"},{l:"休憩時間",f:"kyukei"},
+                  {l:"全走行距離",f:"zensokou"},{l:"実車走行距離",f:"jissha"},
+                ].map(({l,f})=>(
+                  <div key={f}>
+                    <label style={{fontSize:10,color:"var(--txt3)",display:"block",marginBottom:2}}>{l}</label>
+                    <input type="text" value={nippouForm[f]}
+                      onChange={e=>setNF(f,e.target.value)}
+                      style={{...S.inp,fontSize:14,padding:"6px 8px"}}/>
+                  </div>
+                ))}
+              </div>
+              <button onClick={()=>setNippouScreen("idle")} style={{marginTop:10,padding:"6px 12px",background:"none",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:12,cursor:"pointer",color:"var(--txt3)"}}>
+                撮り直す
+              </button>
+            </div>
+
+            {/* 手動入力項目 */}
+            <div style={S.card}>
+              <p style={{fontSize:12,color:"var(--txt2)",fontWeight:500,margin:"0 0 10px"}}>
+                <i className="ti ti-pencil" style={{marginRight:4}}/>手動入力
+              </p>
+
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                <div>
+                  <label style={S.lbl}>出勤時刻（ポータル）</label>
+                  <input type="tel" value={nippouForm.shukkin}
+                    onChange={e=>setNF("shukkin",fmtTimeInput(e.target.value))}
+                    placeholder="15:55"
+                    style={{...S.inp,fontFamily:"var(--mono)",textAlign:"center"}}/>
+                </div>
+                <div>
+                  <label style={S.lbl}>退社時刻（シフト時刻）</label>
+                  <input type="tel" value={nippouForm.taisha}
+                    onChange={e=>setNF("taisha",fmtTimeInput(e.target.value))}
+                    placeholder="36:30"
+                    style={{...S.inp,fontFamily:"var(--mono)",textAlign:"center"}}/>
+                </div>
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                <div>
+                  <label style={S.lbl}>RANK01（GO）</label>
+                  <input type="tel" value={nippouForm.rank01}
+                    onChange={e=>setNF("rank01",e.target.value)}
+                    placeholder="10000" style={S.inp}/>
+                </div>
+                <div>
+                  <label style={S.lbl}>RANK02（GO）</label>
+                  <input type="tel" value={nippouForm.rank02}
+                    onChange={e=>setNF("rank02",e.target.value)}
+                    placeholder="9000" style={S.inp}/>
+                </div>
+              </div>
+
+              <label style={S.lbl}>TAXI種別</label>
+              <div style={{display:"flex",gap:8,marginBottom:10}}>
+                {["JAP","PRE"].map(t=>(
+                  <button key={t} onClick={()=>setNF("taxi",t)} style={{
+                    flex:1,padding:"9px",borderRadius:"var(--r)",cursor:"pointer",fontSize:14,
+                    border:`0.5px solid ${nippouForm.taxi===t?"var(--info-bd)":"var(--bdr)"}`,
+                    background:nippouForm.taxi===t?"var(--info-bg)":"var(--bg)",
+                    color:nippouForm.taxi===t?"var(--info)":"var(--txt2)",
+                    fontWeight:nippouForm.taxi===t?500:400,
+                  }}>{t}</button>
+                ))}
+              </div>
+
+              <label style={S.lbl}>黒タク区分</label>
+              <div style={{display:"flex",gap:8,marginBottom:10}}>
+                {["黒","青","P"].map(t=>(
+                  <button key={t} onClick={()=>setNF("kurotaku",t)} style={{
+                    flex:1,padding:"9px",borderRadius:"var(--r)",cursor:"pointer",fontSize:14,
+                    border:`0.5px solid ${nippouForm.kurotaku===t?"var(--warn-bd)":"var(--bdr)"}`,
+                    background:nippouForm.kurotaku===t?"var(--warn-bg)":"var(--bg)",
+                    color:nippouForm.kurotaku===t?"var(--warn)":"var(--txt2)",
+                    fontWeight:nippouForm.kurotaku===t?500:400,
+                  }}>{t}</button>
+                ))}
+              </div>
+
+              <label style={S.lbl}>出番</label>
+              <input type="text" value={nippouForm.deban}
+                onChange={e=>setNF("deban",e.target.value)}
+                style={{...S.inp,width:80}}/>
+            </div>
+
+            <button onClick={saveNippou} disabled={!canSave} style={{
+              width:"100%",padding:14,background:"var(--bg)",border:"0.5px solid var(--bdr2)",
+              borderRadius:"var(--rl)",fontSize:16,fontWeight:500,
+              cursor:canSave?"pointer":"default",
+              color:"var(--txt)",opacity:canSave?1:0.4,marginTop:4
+            }}>
+              {nippouSending?"送信中…":"✓ 保存してシートへ送信"}
+            </button>
+          </>)}
         </div>
       </div>
     );
@@ -1667,10 +1902,21 @@ function App(){
                   background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
                   borderRadius:"var(--r)",fontSize:14,fontWeight:500,
                   cursor:"pointer",color:"var(--ok)",
-                  display:"flex",alignItems:"center",justifyContent:"center",gap:6
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+                  marginBottom:6,
                 }}>
                   <i className="ti ti-coins" style={{fontSize:16}}/>
                   納金用データ作成
+                </button>
+                <button onClick={()=>{setNippouScreen("idle");setNScanError("");setScreen("nippou_scan");}} style={{
+                  width:"100%",padding:"10px",
+                  background:"var(--info-bg)",border:"0.5px solid var(--info-bd)",
+                  borderRadius:"var(--r)",fontSize:14,fontWeight:500,
+                  cursor:"pointer",color:"var(--info)",
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+                }}>
+                  <i className="ti ti-scan" style={{fontSize:16}}/>
+                  日報スキャン
                 </button>
               </div>
             )}
