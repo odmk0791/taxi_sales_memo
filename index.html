@@ -111,6 +111,7 @@ const NIPPOU_FIELDS={
   rank01:"entry.143976913", rank02:"entry.859283838", taxi:"entry.1351674827",
   kurotaku:"entry.1827094756", deban:"entry.1795800053",
 };
+const NIPPOU_START_KEY="eimu_nippou_start"; /* 出勤記録localStorage */
 const SCAN_PROMPT=`あなたは日本のタクシードライバーの営業日報「運転者営業日報（点呼用）」を読み取るAIです。画像から以下の項目を正確に読み取り、JSONのみ返してください。説明不要。\n読み取り項目:\n- 日付: 年月日 例"2026/06/03"\n- 曜日: 漢字1文字 例"水"\n- 納金額: 数字のみ 納金明細欄の「納金額」 例"91650"\n- 営収: 数字のみ「営業収入」 例"80500"\n- 回数: 数字のみ「営業回数」 例"22"\n- ハンドル時間: 時間:分 例"17:36"\n- 休憩時間: 時間:分「全休憩時間」 例"2:40"\n- 全走行距離: 数字のみkm不要 例"312"\n- 実車走行距離: 数字のみkm不要 例"146"\n- 無線番号: 車番/シフト欄の数字 例"2084"\n出力:\n{"日付":"...","曜日":"...","納金額":"...","営収":"...","回数":"...","ハンドル時間":"...","休憩時間":"...","全走行距離":"...","実車走行距離":"...","無線番号":"..."}`;
 
 const LOC_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSpOj4QzyarqZtTDM5bld8QDEIzRodRLUwAfF8u42CbgTuGPoKqWrOKtw2Ddrhm0OnONlVnzwc8c1BX/pub?gid=657495537&single=true&output=csv";
@@ -657,6 +658,12 @@ function App(){
     rank01:"",rank02:"",taxi:"JAP",kurotaku:"青",deban:"J",
   });
   const setNF=(field,val)=>setNippouForm(f=>({...f,[field]:val}));
+  /* 出勤記録（出勤時に入力→日報スキャンに引き継ぎ）*/
+  const [shukkinForm,setShukkinForm]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null")||{shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:""};}
+    catch{return{shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:""};}
+  });
+  const setSF=(f,v)=>setShukkinForm(s=>({...s,[f]:v}));
   /* 休憩手動入力用 */
   const [manualBS,setManualBS]=useState("");
   const [manualBE,setManualBE]=useState("");
@@ -989,9 +996,22 @@ function App(){
     setHasDraft(false);
   };
 
+  /* ── 出勤記録を保存 ── */
+  const saveShukkin=()=>{
+    try{localStorage.setItem(NIPPOU_START_KEY,JSON.stringify(shukkinForm));}catch{}
+    setScreen("log");
+  };
+
   /* ── 日報スキャン（AI読み取り）── */
   const scanNippou=async(imgData,imgType)=>{
     setNippouScreen("scanning"); setNScanError("");
+    /* 出勤記録から引き継ぎ */
+    const saved=(() => {try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null");}catch{return null;}})();
+    if(saved)setNippouForm(f=>({...f,
+      shukkin:saved.shukkin||f.shukkin, musen:saved.musen||f.musen,
+      taxi:saved.taxi||f.taxi, kurotaku:saved.kurotaku||f.kurotaku,
+      deban:saved.deban||f.deban, rank01:saved.rank01||f.rank01,
+    }));
     try{
       const res=await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",headers:{"Content-Type":"application/json"},
@@ -1010,7 +1030,8 @@ function App(){
         date:p["日付"]||"",dow:p["曜日"]||"",nokin:p["納金額"]||"",
         eishu:p["営収"]||"",kaisu:p["回数"]||"",handle:p["ハンドル時間"]||"",
         kyukei:p["休憩時間"]||"",zensokou:p["全走行距離"]||"",
-        jissha:p["実車走行距離"]||"",musen:p["無線番号"]||"",
+        jissha:p["実車走行距離"]||"",
+        musen:p["無線番号"]||f.musen, /* 出勤記録があれば上書きしない */
       }));
       setNippouScreen("form");
     }catch{
@@ -1213,6 +1234,100 @@ function App(){
               納金機の表示と一致すれば完了
             </p>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ════════════════════════════════
+     出勤記録画面
+  ════════════════════════════════ */
+  if(screen==="shukkin_entry"){
+    const saved=shukkinForm;
+    return(
+      <div style={S.wrap}>
+        <div style={{...S.hdr,gap:10}}>
+          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+          <div>
+            <p style={{fontSize:16,fontWeight:500,margin:0,color:"var(--ok)"}}>出勤記録</p>
+            <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>出勤打刻時に入力・日報スキャンに引き継ぎ</p>
+          </div>
+        </div>
+        <div style={S.body}>
+          <div style={S.card}>
+            <div style={{marginBottom:10}}>
+              <label style={S.lbl}>出勤時刻</label>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <input type="tel" value={saved.shukkin}
+                  onChange={e=>setSF("shukkin",fmtTimeInput(e.target.value))}
+                  placeholder="15:55"
+                  style={{...S.inp,width:100,fontFamily:"var(--mono)",textAlign:"center",fontSize:18}}/>
+                <button onClick={()=>setSF("shukkin",getShiftNow())} style={{
+                  padding:"8px 14px",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",
+                  background:"var(--bg2)",color:"var(--txt2)",fontSize:13,cursor:"pointer"
+                }}>今の時刻</button>
+              </div>
+            </div>
+
+            <div style={{marginBottom:10}}>
+              <label style={S.lbl}>無線番号（車両番号）</label>
+              <input type="tel" value={saved.musen}
+                onChange={e=>setSF("musen",e.target.value)}
+                placeholder="2084"
+                style={{...S.inp,width:100,fontFamily:"var(--mono)"}}/>
+            </div>
+
+            <label style={S.lbl}>TAXI種別</label>
+            <div style={{display:"flex",gap:8,marginBottom:10}}>
+              {["JAP","PRE"].map(t=>(
+                <button key={t} onClick={()=>setSF("taxi",t)} style={{
+                  flex:1,padding:"10px",borderRadius:"var(--r)",cursor:"pointer",fontSize:14,
+                  border:`0.5px solid ${saved.taxi===t?"var(--info-bd)":"var(--bdr)"}`,
+                  background:saved.taxi===t?"var(--info-bg)":"var(--bg)",
+                  color:saved.taxi===t?"var(--info)":"var(--txt2)",
+                  fontWeight:saved.taxi===t?500:400,
+                }}>{t}</button>
+              ))}
+            </div>
+
+            <label style={S.lbl}>黒タク区分</label>
+            <div style={{display:"flex",gap:8,marginBottom:10}}>
+              {["黒","青","P"].map(t=>(
+                <button key={t} onClick={()=>setSF("kurotaku",t)} style={{
+                  flex:1,padding:"10px",borderRadius:"var(--r)",cursor:"pointer",fontSize:14,
+                  border:`0.5px solid ${saved.kurotaku===t?"var(--warn-bd)":"var(--bdr)"}`,
+                  background:saved.kurotaku===t?"var(--warn-bg)":"var(--bg)",
+                  color:saved.kurotaku===t?"var(--warn)":"var(--txt2)",
+                  fontWeight:saved.kurotaku===t?500:400,
+                }}>{t}</button>
+              ))}
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+              <div>
+                <label style={S.lbl}>RANK01（開局時）</label>
+                <input type="tel" value={saved.rank01}
+                  onChange={e=>setSF("rank01",e.target.value)}
+                  placeholder="10000" style={S.inp}/>
+              </div>
+              <div>
+                <label style={S.lbl}>出番</label>
+                <input type="text" value={saved.deban}
+                  onChange={e=>setSF("deban",e.target.value)}
+                  style={{...S.inp,width:60}}/>
+              </div>
+            </div>
+          </div>
+
+          <button onClick={saveShukkin} style={{
+            width:"100%",padding:14,background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
+            borderRadius:"var(--rl)",fontSize:16,fontWeight:500,cursor:"pointer",color:"var(--ok)",marginTop:4
+          }}>
+            ✓ 保存する
+          </button>
+          <p style={{fontSize:11,color:"var(--txt3)",textAlign:"center",marginTop:8}}>
+            この内容は日報スキャン時に自動で引き継がれます
+          </p>
         </div>
       </div>
     );
@@ -1852,6 +1967,14 @@ function App(){
           </p>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          {/* 出勤記録ボタン */}
+          <button onClick={()=>setScreen("shukkin_entry")} style={{
+            display:"flex",alignItems:"center",gap:4,padding:"7px 11px",
+            background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
+            borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--ok)",fontWeight:500,
+          }} title="出勤時に入力">
+            <i className="ti ti-clock-play"/>出勤
+          </button>
           {/* 要修正フィルター */}
           {fixCount>0&&(
             <button onClick={()=>setShowFixOnly(v=>!v)} style={{
