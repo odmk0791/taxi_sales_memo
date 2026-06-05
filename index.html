@@ -665,6 +665,9 @@ function App(){
   });
   const setSF=(f,v)=>setShukkinForm(s=>({...s,[f]:v}));
   const [showRank02,setShowRank02]=useState(false);
+  /* シフトメモ */
+  const [shiftMemo,setShiftMemo]=useState(()=>localStorage.getItem("eimu_shift_memo")||"");
+  const [showMemo,setShowMemo]=useState(false);
   /* 休憩手動入力用 */
   const [manualBS,setManualBS]=useState("");
   const [manualBE,setManualBE]=useState("");
@@ -1003,7 +1006,13 @@ function App(){
     setScreen("log");
   };
 
-  /* ── RANK02を保存（28時頃）── */
+  /* ── シフトメモ自動保存 ── */
+  useEffect(()=>{localStorage.setItem("eimu_shift_memo",shiftMemo);},[shiftMemo]);
+
+  const insertTime=()=>{
+    const ts=`[${getShiftNow()}] `;
+    setShiftMemo(m=>m+(m&&!m.endsWith("\n")?"\n":"")+ts);
+  };
   const saveRank02=(val)=>{
     const updated={...shukkinForm,rank02:val};
     setShukkinForm(updated);
@@ -1985,6 +1994,16 @@ function App(){
           }} title="出勤時に入力">
             <i className="ti ti-clock-play"/>出勤
           </button>
+          {/* シフトメモボタン */}
+          <button onClick={()=>setShowMemo(true)} style={{
+            display:"flex",alignItems:"center",gap:4,padding:"7px 11px",
+            background:shiftMemo?"var(--warn-bg)":"var(--bg2)",
+            border:`0.5px solid ${shiftMemo?"var(--warn-bd)":"var(--bdr2)"}`,
+            borderRadius:"var(--r)",fontSize:13,cursor:"pointer",
+            color:shiftMemo?"var(--warn)":"var(--txt2)",
+          }} title="シフトメモ">
+            <i className="ti ti-notes"/>{shiftMemo?"📝":"メモ"}
+          </button>
           {/* 要修正フィルター */}
           {fixCount>0&&(
             <button onClick={()=>setShowFixOnly(v=>!v)} style={{
@@ -2007,7 +2026,7 @@ function App(){
               const msg=fixCount>0
                 ?`要修正フラグが ${fixCount}件 あります。\n修正完了しましたか？\n\n「OK」で全記録を削除します。`
                 :"今日の全記録を削除しますか？";
-              if(confirm(msg)){setTrips([]);setKuutens([]);setBreaks([]);setShowFixOnly(false);}
+              if(confirm(msg)){setTrips([]);setKuutens([]);setBreaks([]);setShiftMemo("");setShowFixOnly(false);}
             }} style={{padding:"7px 10px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--err)"}}>
               <i className="ti ti-trash"/>
             </button>
@@ -2297,6 +2316,43 @@ function App(){
       <button onClick={()=>{resetTripForm();setScreen("form");}} style={S.fab}>
         <i className="ti ti-plus"/>
       </button>
+
+      {/* シフトメモ モーダル */}
+      {showMemo&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-end",maxWidth:480,margin:"0 auto"}}>
+          <div style={{background:"var(--bg)",borderRadius:"18px 18px 0 0",padding:"16px 14px 32px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <p style={{fontSize:15,fontWeight:500,margin:0}}>📝 シフトメモ</p>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={insertTime} style={{
+                  padding:"5px 12px",borderRadius:16,cursor:"pointer",fontSize:12,
+                  border:"0.5px solid var(--info-bd)",background:"var(--info-bg)",color:"var(--info)"
+                }}>
+                  <i className="ti ti-clock" style={{marginRight:3}}/>{getShiftNow()}を挿入
+                </button>
+                <button onClick={()=>setShowMemo(false)} style={{
+                  padding:"5px 12px",borderRadius:16,cursor:"pointer",fontSize:12,
+                  border:"0.5px solid var(--bdr2)",background:"var(--bg2)",color:"var(--txt2)"
+                }}>閉じる</button>
+              </div>
+            </div>
+            <textarea
+              value={shiftMemo}
+              onChange={e=>setShiftMemo(e.target.value)}
+              placeholder={"[時刻を挿入] ボタンでタイムスタンプを追加\n例:\n[25:14] GOシステムエラー発生\n[28:30] 渋滞で遅延"}
+              rows={8}
+              style={{...S.inp,width:"100%",lineHeight:1.7,fontSize:14,padding:"10px",
+                      resize:"none",boxSizing:"border-box"}}
+            />
+            {shiftMemo&&(
+              <button onClick={()=>{if(confirm("メモを削除しますか？"))setShiftMemo("");}} style={{
+                marginTop:6,padding:"4px 10px",background:"none",border:"none",
+                fontSize:12,cursor:"pointer",color:"var(--err)"
+              }}>メモを削除</button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
