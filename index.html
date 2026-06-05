@@ -2260,7 +2260,22 @@ function App(){
                 <p style={{fontSize:11,color:t.needsFix?"var(--warn)":"var(--txt3)",margin:"0 0 2px",fontWeight:t.needsFix?500:400}}>
                   #{trips.indexOf(t)+1}　{t.pTime}{t.dTime?` → ${t.dTime}`:""}{t.jitsu?` (${t.jitsu})`:""}
                   {t.needsFix&&<span style={{marginLeft:6}}>🚩 要修正</span>}
-                  {FORM_ID&&!t.needsFix&&<span style={{marginLeft:6,color:t.synced?"var(--ok)":"var(--warn)"}}>{t.synced?"●":"○"}</span>}
+                  {FORM_ID&&!t.needsFix&&(
+                    t.synced
+                      ?<span style={{marginLeft:6,color:"var(--ok)"}}>●</span>
+                      :<button onClick={async e=>{
+                          e.stopPropagation();
+                          const ok=await submitToForm(t);
+                          if(ok){setTrips(ts=>ts.map(x=>x.id===t.id?{...x,synced:true}:x));}
+                          else{alert("送信に失敗しました。電波の状態を確認してください。");}
+                        }} style={{
+                          marginLeft:6,background:"none",border:"0.5px solid var(--warn-bd)",
+                          borderRadius:10,padding:"2px 7px",cursor:"pointer",
+                          fontSize:11,color:"var(--warn)",lineHeight:1.4,
+                        }}>
+                        ○ 再送
+                      </button>
+                  )}
                 </p>
                 <p style={{fontSize:14,fontWeight:500,margin:"0 0 4px",lineHeight:1.5}}>
                   <span style={{color:"var(--txt2)"}}>{t.pWard||"—"}</span>{t.pArea}
