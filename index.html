@@ -668,6 +668,7 @@ function App(){
   /* シフトメモ */
   const [shiftMemo,setShiftMemo]=useState(()=>localStorage.getItem("eimu_shift_memo")||"");
   const [showMemo,setShowMemo]=useState(false);
+  const [fpCapturing,setFpCapturing]=useState(false); /* 乗車一括取得中 */
   /* 休憩手動入力用 */
   const [manualBS,setManualBS]=useState("");
   const [manualBE,setManualBE]=useState("");
@@ -1004,6 +1005,21 @@ function App(){
   const saveShukkin=()=>{
     try{localStorage.setItem(NIPPOU_START_KEY,JSON.stringify(shukkinForm));}catch{}
     setScreen("log");
+  };
+
+  /* ── 乗車時刻・現在地を一括取得 ── */
+  const capturePickup=async()=>{
+    setFp(getShiftNow()); /* まず時刻をセット */
+    setFpCapturing(true);
+    try{
+      const{lat,lng}=await getGPS();
+      const nearest=findNearest(lat,lng,locList.filter(l=>l.lat));
+      if(nearest){
+        setFpWard(nearest.ward); setFpArea(nearest.area);
+        setFpLat(lat); setFpLng(lng);
+      }
+    }catch{/* GPS失敗でも時刻はセット済み */}
+    finally{setFpCapturing(false);}
   };
 
   /* ── シフトメモ自動保存 ── */
@@ -1843,6 +1859,22 @@ function App(){
         </div>
       </div>
       <div style={S.body}>
+
+        {/* ⚡ 乗車時刻・現在地ワンタップ取得 */}
+        {!editId&&(
+          <button onClick={capturePickup} disabled={fpCapturing} style={{
+            width:"100%",padding:"14px",marginBottom:10,
+            background:fpCapturing?"var(--bg2)":(fp&&fpWard)?"var(--ok-bg)":"var(--info-bg)",
+            border:`1.5px solid ${fpCapturing?"var(--bdr)":(fp&&fpWard)?"var(--ok-bd)":"var(--info-bd)"}`,
+            borderRadius:"var(--rl)",fontSize:15,fontWeight:500,cursor:fpCapturing?"default":"pointer",
+            color:fpCapturing?"var(--txt3)":(fp&&fpWard)?"var(--ok)":"var(--info)",
+            display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+          }}>
+            <i className={`ti ${fpCapturing?"ti-loader-2":"ti-map-pin-bolt"}`}
+               style={{fontSize:18,animation:fpCapturing?"spin 1s linear infinite":""}}/>
+            {fpCapturing?"取得中…":(fp&&fpWard)?`✓ ${fp}　${fpWard}${fpArea}`:"⚡ 乗車時刻・現在地を一括取得"}
+          </button>
+        )}
 
         <div style={S.card}>
           <label style={S.lbl}>日付（自動：16時未満は前日扱い）</label>
