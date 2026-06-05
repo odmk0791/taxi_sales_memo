@@ -660,10 +660,11 @@ function App(){
   const setNF=(field,val)=>setNippouForm(f=>({...f,[field]:val}));
   /* 出勤記録（出勤時に入力→日報スキャンに引き継ぎ）*/
   const [shukkinForm,setShukkinForm]=useState(()=>{
-    try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null")||{shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:""};}
-    catch{return{shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:""};}
+    try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null")||{shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:"",rank02:""};}
+    catch{return{shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:"",rank02:""};}
   });
   const setSF=(f,v)=>setShukkinForm(s=>({...s,[f]:v}));
+  const [showRank02,setShowRank02]=useState(false);
   /* 休憩手動入力用 */
   const [manualBS,setManualBS]=useState("");
   const [manualBE,setManualBE]=useState("");
@@ -1002,6 +1003,14 @@ function App(){
     setScreen("log");
   };
 
+  /* ── RANK02を保存（28時頃）── */
+  const saveRank02=(val)=>{
+    const updated={...shukkinForm,rank02:val};
+    setShukkinForm(updated);
+    try{localStorage.setItem(NIPPOU_START_KEY,JSON.stringify(updated));}catch{}
+    setShowRank02(false);
+  };
+
   /* ── 日報スキャン（AI読み取り）── */
   const scanNippou=async(imgData,imgType)=>{
     setNippouScreen("scanning"); setNScanError("");
@@ -1011,6 +1020,7 @@ function App(){
       shukkin:saved.shukkin||f.shukkin, musen:saved.musen||f.musen,
       taxi:saved.taxi||f.taxi, kurotaku:saved.kurotaku||f.kurotaku,
       deban:saved.deban||f.deban, rank01:saved.rank01||f.rank01,
+      rank02:saved.rank02||f.rank02,
     }));
     try{
       const res=await fetch("https://api.anthropic.com/v1/messages",{
@@ -2063,6 +2073,47 @@ function App(){
             </div>
           </div>
         )}
+
+        {/* RANK02 クイック入力（28時頃）*/}
+        {(()=>{
+          const r2=shukkinForm.rank02;
+          return(
+            <>
+              {showRank02?(
+                <div style={{background:"var(--warn-bg)",border:"1.5px solid var(--warn-bd)",borderRadius:"var(--rl)",padding:"12px 14px",marginBottom:10}}>
+                  <p style={{fontSize:12,color:"var(--warn)",fontWeight:500,margin:"0 0 8px"}}>
+                    📊 RANK02を入力（28時頃）
+                  </p>
+                  <div style={{display:"flex",gap:8}}>
+                    <input type="tel" id="rank02input" defaultValue={r2}
+                      placeholder="例：9000"
+                      style={{...S.inp,flex:1,fontFamily:"var(--mono)",fontSize:16}}
+                      onKeyDown={e=>{if(e.key==="Enter")saveRank02(e.target.value);}}/>
+                    <button onClick={()=>saveRank02(document.getElementById("rank02input").value)}
+                      style={{padding:"0 16px",background:"var(--warn)",border:"none",borderRadius:"var(--r)",fontSize:14,fontWeight:500,cursor:"pointer",color:"#fff",flexShrink:0}}>
+                      保存
+                    </button>
+                    <button onClick={()=>setShowRank02(false)}
+                      style={{padding:"0 10px",background:"none",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--txt3)"}}>
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              ):(
+                <div style={{textAlign:"right",marginBottom:4}}>
+                  <button onClick={()=>setShowRank02(true)} style={{
+                    padding:"5px 12px",borderRadius:16,cursor:"pointer",fontSize:12,
+                    border:`0.5px solid ${r2?"var(--ok-bd)":"var(--warn-bd)"}`,
+                    background:r2?"var(--ok-bg)":"var(--warn-bg)",
+                    color:r2?"var(--ok)":"var(--warn)",
+                  }}>
+                    📊 RANK02 {r2?`= ${r2} ✓`:"未入力"}
+                  </button>
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         {/* 休憩中バナー */}
         {breakStart&&(          <div style={{background:"var(--ok-bg)",border:"1.5px solid var(--ok-bd)",borderRadius:"var(--rl)",padding:"12px 14px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
