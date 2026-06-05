@@ -669,6 +669,7 @@ function App(){
   const [shiftMemo,setShiftMemo]=useState(()=>localStorage.getItem("eimu_shift_memo")||"");
   const [showMemo,setShowMemo]=useState(false);
   const [fpCapturing,setFpCapturing]=useState(false); /* 乗車一括取得中 */
+  const [fdCapturing,setFdCapturing]=useState(false); /* 降車一括取得中 */
   /* 休憩手動入力用 */
   const [manualBS,setManualBS]=useState("");
   const [manualBE,setManualBE]=useState("");
@@ -1009,17 +1010,26 @@ function App(){
 
   /* ── 乗車時刻・現在地を一括取得 ── */
   const capturePickup=async()=>{
-    setFp(getShiftNow()); /* まず時刻をセット */
+    setFp(getShiftNow());
     setFpCapturing(true);
     try{
       const{lat,lng}=await getGPS();
       const nearest=findNearest(lat,lng,locList.filter(l=>l.lat));
-      if(nearest){
-        setFpWard(nearest.ward); setFpArea(nearest.area);
-        setFpLat(lat); setFpLng(lng);
-      }
-    }catch{/* GPS失敗でも時刻はセット済み */}
+      if(nearest){setFpWard(nearest.ward);setFpArea(nearest.area);setFpLat(lat);setFpLng(lng);}
+    }catch{}
     finally{setFpCapturing(false);}
+  };
+
+  /* ── 降車時刻・現在地を一括取得 ── */
+  const captureDropoff=async()=>{
+    setFd(getShiftNow());
+    setFdCapturing(true);
+    try{
+      const{lat,lng}=await getGPS();
+      const nearest=findNearest(lat,lng,locList.filter(l=>l.lat));
+      if(nearest){setFdWard(nearest.ward);setFdArea(nearest.area);setFdLat(lat);setFdLng(lng);}
+    }catch{}
+    finally{setFdCapturing(false);}
   };
 
   /* ── シフトメモ自動保存 ── */
@@ -1894,6 +1904,21 @@ function App(){
 
         <div style={S.card}>
           <label style={S.lbl}>降車地</label>
+          {/* ⚡ 降車一括取得 */}
+          {!editId&&(
+            <button onClick={captureDropoff} disabled={fdCapturing} style={{
+              width:"100%",padding:"11px",marginBottom:8,
+              background:fdCapturing?"var(--bg2)":(fd&&fdWard)?"var(--ok-bg)":"var(--warn-bg)",
+              border:`1px solid ${fdCapturing?"var(--bdr)":(fd&&fdWard)?"var(--ok-bd)":"var(--warn-bd)"}`,
+              borderRadius:"var(--r)",fontSize:14,fontWeight:500,cursor:fdCapturing?"default":"pointer",
+              color:fdCapturing?"var(--txt3)":(fd&&fdWard)?"var(--ok)":"var(--warn)",
+              display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+            }}>
+              <i className={`ti ${fdCapturing?"ti-loader-2":"ti-map-pin-bolt"}`}
+                 style={{fontSize:16,animation:fdCapturing?"spin 1s linear infinite":""}}/>
+              {fdCapturing?"取得中…":(fd&&fdWard)?`✓ ${fd}　${fdWard}${fdArea}`:"⚡ 降車時刻・現在地を一括取得"}
+            </button>
+          )}
           <LocBtn ward={fdWard} area={fdArea} lat={fdLat} lng={fdLng} onClick={()=>openPicker("d")}/>
         </div>
 
