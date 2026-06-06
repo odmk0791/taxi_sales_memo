@@ -99,7 +99,7 @@ const REST_FIELDS = {
   memo:      "entry.472039999",
 };
 const BREAK_STORE_KEY  = "eimu_breaks_v1";
-const TARGET_BREAK_MINS = 150; /* 目標休憩時間（分）*/
+const TARGET_BREAK_MINS = 130; /* 目標休憩時間（最低ライン）*/
 
 /* ── 日報フォーム設定 ── */
 const NIPPOU_FORM_ID="1FAIpQLSdJ2F5AeDKdXnN8GyCsx_gsGWRns1lO7PMZiuiUnoqihVMu5A";
@@ -452,7 +452,7 @@ async function submitToForm(trip){
     [FIELDS.fare]:fmtFare(trip.fare), [FIELDS.acc]:trip.acc,
     [FIELDS.stat]:trip.stat,       [FIELDS.pay]:trip.pay,
     [FIELDS.sankyu]:trip.sankyu,   [FIELDS.kotei]:trip.kotei,
-    [FIELDS.custType]:trip.custType||"日本人",
+    [FIELDS.custType]:Array.isArray(trip.custType)?trip.custType.join("/")||"":trip.custType||"",
     [FIELDS.yuusen]:trip.yuusen?"優":"",
     [FIELDS.easternName]:trip.easternName||"",
     [FIELDS.memo]:trip.memo||"",
@@ -663,6 +663,9 @@ function App(){
   });
   const setSF=(f,v)=>setShukkinForm(s=>({...s,[f]:v}));
   const [showRank02,setShowRank02]=useState(false);
+  /* 連続稼働時間（最後の休憩終了からの経過分）*/
+  const [lastRestEnd,setLastRestEnd]=useState(()=>{const v=localStorage.getItem("eimu_last_rest_end");return v?parseInt(v):null;});
+  const [contiguousSec,setContiguousSec]=useState(0);
   /* シフトメモ */
   const [shiftMemo,setShiftMemo]=useState(()=>localStorage.getItem("eimu_shift_memo")||"");
   const [showMemo,setShowMemo]=useState(false);
@@ -694,7 +697,7 @@ function App(){
   const [yuusen,setYuusen]=useState(false);
   const [easternName,setEasternName]=useState("");
   const [memo,setMemo]=useState("");
-  const [custType,setCustType]=useState("日本人"); /* 客種別 */
+  const [custType,setCustType]=useState([]); /* 客種別: array of flags */
 
   /* ── 空転フォーム ── */
   const [kType,setKType]=useState("A");
@@ -846,7 +849,7 @@ function App(){
     setKotei(t?t.kotei:"N"); setYuusen(t?t.yuusen:false);
     setEasternName(t?t.easternName||"":"");
     setMemo(t?t.memo||"":"");
-    setCustType(t?t.custType||"日本人":"日本人");
+    setCustType(t?( Array.isArray(t.custType)?t.custType:(t.custType&&t.custType!=="日本人"?[t.custType]:[]) ):[]);
   };
   const resetKuutenForm=()=>{
     setKType("A");setKTime("");
@@ -952,6 +955,7 @@ function App(){
     if(diff<0)diff+=24*60;
     const minutes=Math.round(diff);
     const rec={id:Date.now(),date:getShiftDate(),startTime:breakStart,endTime,minutes,memo:"",synced:false};
+    const now=Date.now();setLastRestEnd(now);try{localStorage.setItem("eimu_last_rest_end",now);}catch{}
     const ok=await submitBreakToForm(rec);
     rec.synced=ok;
     setBreaks(bs=>[...bs,rec]);
@@ -1033,6 +1037,14 @@ function App(){
   /* ── シフトメモ自動保存 ── */
   useEffect(()=>{window.scrollTo(0,0);},[screen]);
 
+  /* 連続稼働タイマー */
+  useEffect(()=>{
+    if(breakStart){setContiguousSec(0);return;}
+    if(!lastRestEnd)return;
+    const iv=setInterval(()=>setContiguousSec(Math.floor((Date.now()-lastRestEnd)/1000)),1000);
+    return()=>clearInterval(iv);
+  },[lastRestEnd,breakStart]);
+
   const insertTime=()=>{
     const ts=`[${getShiftNow()}] `;
     setShiftMemo(m=>m+(m&&!m.endsWith("\n")?"\n":"")+ts);
@@ -1040,6 +1052,7 @@ function App(){
   const saveRank02=(val)=>{
     const updated={...shukkinForm,rank02:val};
     setShukkinForm(updated);
+    setNippouForm(f=>({...f,rank02:val}));
     try{localStorage.setItem(NIPPOU_START_KEY,JSON.stringify(updated));}catch{}
     setShowRank02(false);
   };
@@ -1130,6 +1143,16 @@ function App(){
   };
 
   const total=trips.reduce((s,t)=>s+t.fare,0);
+
+  /* 12 時間帯別目標 */
+  const BENCHMARKS=[
+    {hour:20,minF:20000,maxF:30000,trips:10},
+    {hour:22,minF:30000,maxF:40000,trips:15},
+    {hour:24,minF:40000,maxF:60000,trips:20},
+    {hour:28,minF:60000,maxF:80000,trips:30},
+    {hour:30,minF:80000,maxF:100000,trips:35},
+    {hour:33,minF:100000,maxF:110000,trips:40},
+  ];
   const kuutenTotal=kuutens.reduce((s,k)=>s+k.fare,0);
   const unsyncedCount=FORM_ID?trips.filter(t=>!t.synced).length:0;
   const [showFixOnly,setShowFixOnly]=useState(false);
@@ -1227,7 +1250,7 @@ function App(){
     return(
       <div style={S.wrap}>
         <div style={{...S.hdr,gap:10}}>
-          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
           <div>
             <p style={{fontSize:16,fontWeight:500,margin:0}}>納金機入力用</p>
             <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>{trips[0]?.date||getShiftDate()} — {trips.length}件</p>
@@ -1251,10 +1274,10 @@ function App(){
                   <span style={{fontSize:13,color:"var(--txt2)"}}>
                     売上 ¥{grouped.cash.total.toLocaleString()} +
                   </span>
-                  <input type="tel" value={kosouku}
-                    onChange={e=>setKosouku(e.target.value)}
+                  <input type="text" inputMode="numeric" value={kosouku}
+                    onChange={e=>setKosouku(e.target.value.replace(/[^0-9]/g,""))}
                     placeholder="0"
-                    style={{...S.inp,width:90,fontFamily:"var(--mono)",textAlign:"right",padding:"6px 8px",fontSize:15}}
+                    style={{...S.inp,width:100,fontFamily:"var(--mono)",textAlign:"right",padding:"6px 8px",fontSize:15}}
                   />
                   <span style={{fontSize:13,color:"var(--txt2)"}}>円</span>
                 </div>
@@ -1297,120 +1320,36 @@ function App(){
     );
   }
 
-  /* ════════════════════════════════
-     出勤記録画面
-  ════════════════════════════════ */
-  if(screen==="shukkin_entry"){
-    const saved=shukkinForm;
-    return(
-      <div style={S.wrap}>
-        <div style={{...S.hdr,gap:10}}>
-          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
-          <div>
-            <p style={{fontSize:16,fontWeight:500,margin:0,color:"var(--ok)"}}>出勤記録</p>
-            <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>出勤打刻時に入力・日報スキャンに引き継ぎ</p>
-          </div>
-        </div>
-        <div style={S.body}>
-          <div style={S.card}>
-            <div style={{marginBottom:10}}>
-              <label style={S.lbl}>出勤時刻</label>
-              <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <input type="tel" value={saved.shukkin}
-                  onChange={e=>setSF("shukkin",fmtTimeInput(e.target.value))}
-                  placeholder="15:55"
-                  style={{...S.inp,width:100,fontFamily:"var(--mono)",textAlign:"center",fontSize:18}}/>
-                <button onClick={()=>setSF("shukkin",getShiftNow())} style={{
-                  padding:"8px 14px",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",
-                  background:"var(--bg2)",color:"var(--txt2)",fontSize:13,cursor:"pointer"
-                }}>今の時刻</button>
-              </div>
-            </div>
 
-            <div style={{marginBottom:10}}>
-              <label style={S.lbl}>無線番号（車両番号）</label>
-              <input type="tel" value={saved.musen}
-                onChange={e=>setSF("musen",e.target.value)}
-                placeholder="2084"
-                style={{...S.inp,width:100,fontFamily:"var(--mono)"}}/>
-            </div>
-
-            <label style={S.lbl}>TAXI種別</label>
-            <div style={{display:"flex",gap:8,marginBottom:10}}>
-              {["JAP","PRE"].map(t=>(
-                <button key={t} onClick={()=>setSF("taxi",t)} style={{
-                  flex:1,padding:"10px",borderRadius:"var(--r)",cursor:"pointer",fontSize:14,
-                  border:`0.5px solid ${saved.taxi===t?"var(--info-bd)":"var(--bdr)"}`,
-                  background:saved.taxi===t?"var(--info-bg)":"var(--bg)",
-                  color:saved.taxi===t?"var(--info)":"var(--txt2)",
-                  fontWeight:saved.taxi===t?500:400,
-                }}>{t}</button>
-              ))}
-            </div>
-
-            <label style={S.lbl}>黒タク区分</label>
-            <div style={{display:"flex",gap:8,marginBottom:10}}>
-              {["黒","青","P"].map(t=>(
-                <button key={t} onClick={()=>setSF("kurotaku",t)} style={{
-                  flex:1,padding:"10px",borderRadius:"var(--r)",cursor:"pointer",fontSize:14,
-                  border:`0.5px solid ${saved.kurotaku===t?"var(--warn-bd)":"var(--bdr)"}`,
-                  background:saved.kurotaku===t?"var(--warn-bg)":"var(--bg)",
-                  color:saved.kurotaku===t?"var(--warn)":"var(--txt2)",
-                  fontWeight:saved.kurotaku===t?500:400,
-                }}>{t}</button>
-              ))}
-            </div>
-
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-              <div>
-                <label style={S.lbl}>RANK01（開局時）</label>
-                <input type="tel" value={saved.rank01}
-                  onChange={e=>setSF("rank01",e.target.value)}
-                  placeholder="10000" style={S.inp}/>
-              </div>
-              <div>
-                <label style={S.lbl}>出番</label>
-                <input type="text" value={saved.deban}
-                  onChange={e=>setSF("deban",e.target.value)}
-                  style={{...S.inp,width:60}}/>
-              </div>
-            </div>
-          </div>
-
-          <button onClick={saveShukkin} style={{
-            width:"100%",padding:14,background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
-            borderRadius:"var(--rl)",fontSize:16,fontWeight:500,cursor:"pointer",color:"var(--ok)",marginTop:4
-          }}>
-            ✓ 保存する
-          </button>
-          <p style={{fontSize:11,color:"var(--txt3)",textAlign:"center",marginTop:8}}>
-            この内容は日報スキャン時に自動で引き継がれます
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   /* ════════════════════════════════
-     日報入力画面（手入力）
+     出勤・日報 統合入力画面
   ════════════════════════════════ */
   if(screen==="nippou_scan"){
-    const canSave=nippouForm.date&&nippouForm.nokin&&!nippouSending;
+    const canSend=nippouForm.date&&nippouForm.nokin&&!nippouSending;
+    const saveTemp=()=>{
+      const d={shukkin:nippouForm.shukkin,musen:nippouForm.musen,taxi:nippouForm.taxi,
+               kurotaku:nippouForm.kurotaku,deban:nippouForm.deban,rank01:nippouForm.rank01,
+               rank02:nippouForm.rank02};
+      setShukkinForm(s=>({...s,...d}));
+      try{localStorage.setItem(NIPPOU_START_KEY,JSON.stringify({...shukkinForm,...d}));}catch{}
+      alert("出勤情報を一時保存しました");
+    };
     return(
       <div style={S.wrap}>
         <div style={{...S.hdr,gap:10}}>
-          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
           <div>
-            <p style={{fontSize:16,fontWeight:500,margin:0}}>日報入力</p>
-            <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>日報の数値を入力してシートに送信</p>
+            <p style={{fontSize:16,fontWeight:500,margin:0}}>出勤・日報入力</p>
+            <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>出勤時に上段→一時保存　帰庫後に下段→送信</p>
           </div>
         </div>
         <div style={S.body}>
 
           {/* 日報から入力（7項目）*/}
           <div style={S.card}>
-            <p style={{fontSize:11,color:"var(--txt3)",fontWeight:500,margin:"0 0 10px",textTransform:"uppercase",letterSpacing:1}}>
-              日報から入力
+            <p style={{fontSize:11,color:"var(--info)",fontWeight:500,margin:"0 0 10px"}}>
+              ② 帰庫後・日報から入力
             </p>
             <div style={{marginBottom:8}}>
               <label style={S.lbl}>日付</label>
@@ -1440,10 +1379,10 @@ function App(){
             </div>
           </div>
 
-          {/* 出勤記録から引き継ぎ（確認・修正）*/}
+          {/* 事前入力セクション（出勤時）*/}
           <div style={S.card}>
-            <p style={{fontSize:11,color:"var(--txt3)",fontWeight:500,margin:"0 0 10px",textTransform:"uppercase",letterSpacing:1}}>
-              出勤記録から引き継ぎ
+            <p style={{fontSize:11,color:"var(--ok)",fontWeight:500,margin:"0 0 10px"}}>
+              ① 出勤時に入力
             </p>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
               <div>
@@ -1509,13 +1448,21 @@ function App(){
             </div>
           </div>
 
-          <button onClick={saveNippou} disabled={!canSave} style={{
-            width:"100%",padding:14,background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
-            borderRadius:"var(--rl)",fontSize:16,fontWeight:500,
-            cursor:canSave?"pointer":"default",color:"var(--ok)",opacity:canSave?1:0.4,marginTop:4
-          }}>
-            {nippouSending?"送信中…":"✓ シートに送信"}
-          </button>
+          <div style={{display:"flex",gap:8,marginTop:4}}>
+            <button onClick={saveTemp} style={{
+              flex:1,padding:14,background:"var(--bg2)",border:"0.5px solid var(--bdr2)",
+              borderRadius:"var(--rl)",fontSize:14,fontWeight:500,cursor:"pointer",color:"var(--txt2)"
+            }}>
+              💾 一時保存
+            </button>
+            <button onClick={saveNippou} disabled={!canSend} style={{
+              flex:2,padding:14,background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
+              borderRadius:"var(--rl)",fontSize:14,fontWeight:500,
+              cursor:canSend?"pointer":"default",color:"var(--ok)",opacity:canSend?1:0.4
+            }}>
+              {nippouSending?"送信中…":"✓ シートに送信"}
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -1532,7 +1479,7 @@ function App(){
     return(
       <div style={S.wrap}>
         <div style={{...S.hdr,gap:10}}>
-          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
           <p style={{fontSize:16,fontWeight:500,margin:0,color:"var(--ok)"}}>休憩を手動入力</p>
         </div>
         <div style={S.body}>
@@ -1574,7 +1521,7 @@ function App(){
   if(pickerFor) return (
     <div style={S.wrap}>
       <div style={{...S.hdr,gap:10}}>
-        <button onClick={()=>setPickerFor(null)} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+        <button onClick={()=>setPickerFor(null)} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
         <span style={{fontSize:15,fontWeight:500}}>
           {pickerFor==="p"?"乗車地":pickerFor==="d"?"降車地":"空転場所"}を選択
         </span>
@@ -1729,7 +1676,7 @@ function App(){
         <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"var(--bg3)",
                      zIndex:50,display:"flex",flexDirection:"column",maxWidth:480,margin:"0 auto"}}>
           <div style={{...S.hdr,gap:10}}>
-            <button onClick={()=>setPickWard("")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+            <button onClick={()=>setPickWard("")} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
             <span style={{fontSize:15,fontWeight:500}}>{pickWard}</span>
             <span style={{fontSize:11,color:"var(--txt3)"}}>{(locDB[pickWard]||[]).length}件</span>
           </div>
@@ -1761,7 +1708,7 @@ function App(){
   if(screen==="kuuten") return (
     <div style={S.wrap}>
       <div style={{...S.hdr,gap:10}}>
-        <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+        <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
         <p style={{fontSize:16,fontWeight:500,margin:0,color:"var(--err)"}}>空転を記録</p>
       </div>
       <div style={S.body}>
@@ -1840,7 +1787,7 @@ function App(){
   if(screen==="form") return (
     <div style={S.wrap}>
       <div style={{...S.hdr,gap:10}}>
-        <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--txt)",lineHeight:1}}>‹</button>
+        <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
         <div>
           <p style={{fontSize:16,fontWeight:500,margin:0}}>{editId?"記録を編集":"新規乗車記録"}</p>
           {sendResult&&<p style={{fontSize:11,color:sendResult==="ok"?"var(--ok)":"var(--err)",margin:0}}>{sendResult==="ok"?"✓ 送信しました":"⚠ 送信に失敗（保存済）"}</p>}
@@ -1949,23 +1896,35 @@ function App(){
 
         <div style={S.card}>
           <Toggle on={yuusen} onToggle={()=>setYuusen(v=>!v)}
-            label="優先パス" sub="該当する場合のみON（約20件に1回）" color="var(--warn)"/>
+            label="優先パス" sub="該当する場合のみON" color="var(--warn)"/>
         </div>
 
-        {/* 客種別 */}
+        {/* 客種別（複数選択可）*/}
         <div style={S.card}>
-          <label style={S.lbl}>客種別</label>
-          <div style={{display:"flex",gap:8,marginTop:4}}>
-            {["日本人","インバウンド"].map(t=>(
-              <button key={t} onClick={()=>setCustType(t)} style={{
-                flex:1,padding:"10px",borderRadius:"var(--r)",cursor:"pointer",fontSize:14,
-                border:`0.5px solid ${custType===t?(t==="インバウンド"?"var(--warn-bd)":"var(--info-bd)"):"var(--bdr)"}`,
-                background:custType===t?(t==="インバウンド"?"var(--warn-bg)":"var(--info-bg)"):"var(--bg)",
-                color:custType===t?(t==="インバウンド"?"var(--warn)":"var(--info)"):"var(--txt2)",
-                fontWeight:custType===t?500:400,
-              }}>{t}</button>
-            ))}
+          <label style={S.lbl}>客種別（該当するものをチェック）</label>
+          <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap"}}>
+            {[
+              {v:"インバウンド",c:"var(--warn)",cb:"var(--warn-bd)",cbg:"var(--warn-bg)"},
+              {v:"ホスト払い",c:"var(--info)",cb:"var(--info-bd)",cbg:"var(--info-bg)"},
+              {v:"障割",c:"var(--txt2)",cb:"var(--bdr2)",cbg:"var(--bg2)"},
+            ].map(({v,c,cb,cbg})=>{
+              const sel=Array.isArray(custType)&&custType.includes(v);
+              return(
+                <button key={v} onClick={()=>setCustType(prev=>{
+                  const arr=Array.isArray(prev)?[...prev]:[];
+                  return sel?arr.filter(x=>x!==v):[...arr,v];
+                })} style={{
+                  padding:"9px 14px",borderRadius:"var(--r)",cursor:"pointer",fontSize:13,
+                  border:`0.5px solid ${sel?cb:"var(--bdr)"}`,
+                  background:sel?cbg:"var(--bg)",
+                  color:sel?c:"var(--txt2)",fontWeight:sel?500:400,
+                }}>
+                  {sel?"✓ ":""}{v}
+                </button>
+              );
+            })}
           </div>
+          {Array.isArray(custType)&&custType.length===0&&<p style={{fontSize:10,color:"var(--txt3)",margin:"6px 0 0"}}>何も選択しない＝一般（日本人）</p>}
         </div>
 
         <div style={S.card}>
@@ -2012,20 +1971,34 @@ function App(){
     <div style={S.wrap}>
       <div style={S.hdr}>
         <div>
-          <p style={{fontSize:16,fontWeight:500,margin:0}}>営業メモ</p>
-          <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>
-            {trips[0]?.date||getShiftDate()} — 乗車{trips.length}件 / 空転{kuutens.length}件
-            {unsyncedCount>0&&<span style={{color:"var(--warn)",marginLeft:6}}>未送信{unsyncedCount}</span>}
-          </p>
+          <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+            <p style={{fontSize:16,fontWeight:500,margin:0}}>営業メモ</p>
+            <span style={{fontSize:18,fontWeight:700,color:"var(--info)"}}>{trips.length}<span style={{fontSize:12,fontWeight:400,color:"var(--txt2)"}}>件</span></span>
+            {kuutens.length>0&&<span style={{fontSize:13,color:"var(--err)"}}>{kuutens.length}空転</span>}
+            {unsyncedCount>0&&<span style={{fontSize:11,color:"var(--warn)"}}>未送信{unsyncedCount}</span>}
+          </div>
+          <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>{trips[0]?.date||getShiftDate()}</p>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
-          {/* 出勤記録ボタン */}
-          <button onClick={()=>setScreen("shukkin_entry")} style={{
+          {/* 出勤・日報ボタン */}
+          <button onClick={()=>{
+            const saved=(()=>{try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null");}catch{return null;}})();
+            setNippouForm(f=>({...f,
+              date:getShiftDate(),
+              dow:["日","月","火","水","木","金","土"][new Date().getDay()],
+              shukkin:saved?.shukkin||"",musen:saved?.musen||"",
+              taxi:saved?.taxi||"JAP",kurotaku:saved?.kurotaku||"青",
+              deban:saved?.deban||"J",rank01:saved?.rank01||"",
+              rank02:saved?.rank02||shukkinForm.rank02||"",taisha:"",
+              nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",zensokou:"",jissha:"",
+            }));
+            setScreen("nippou_scan");
+          }} style={{
             display:"flex",alignItems:"center",gap:4,padding:"7px 11px",
             background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
             borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--ok)",fontWeight:500,
-          }} title="出勤時に入力">
-            <i className="ti ti-clock-play"/>出勤
+          }} title="出勤・日報入力">
+            <i className="ti ti-report"/>日報
           </button>
           {/* シフトメモボタン */}
           <button onClick={()=>setShowMemo(true)} style={{
@@ -2068,10 +2041,39 @@ function App(){
       </div>
 
       <div style={S.body}>
+
+        {/* 12 時間帯目標アラート */}
+        {(()=>{
+          const now=getShiftNow();
+          const h=parseInt(now.split(":")[0]);
+          const bm=[...BENCHMARKS].reverse().find(b=>h>=b.hour);
+          if(!bm)return null;
+          const okFare=total>=bm.minF;
+          const okTrips=trips.length>=bm.trips;
+          const ok=okFare||okTrips;
+          const diff=bm.minF-total;
+          return(
+            <div style={{
+              ...S.card,marginBottom:8,
+              borderLeft:`3px solid ${ok?"var(--ok)":diff>10000?"var(--err)":"var(--warn)"}`,
+              padding:"8px 12px",
+            }}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:11,color:"var(--txt3)"}}>〜{bm.hour}時目標</span>
+                <span style={{fontSize:11,fontWeight:500,color:ok?"var(--ok)":diff>10000?"var(--err)":"var(--warn)"}}>
+                  {ok?"✓ 目標クリア":okTrips?"回数OK（売上"+diff.toLocaleString()+"円不足）":"¥"+diff.toLocaleString()+"円 / "+Math.max(0,bm.trips-trips.length)+"件 不足"}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
         {(trips.length>0||kuutens.length>0)&&(
           <div style={{...S.card,marginBottom:10}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:kuutens.length>0?6:0}}>
-              <span style={{fontSize:13,color:"var(--txt2)"}}>乗車合計</span>
+              <div>
+                <span style={{fontSize:13,color:"var(--txt2)"}}>乗車合計</span>
+                {trips.length>0&&<span style={{fontSize:11,color:"var(--txt3)",marginLeft:8}}>平均 ¥{Math.round(total/trips.length).toLocaleString()}</span>}
+              </div>
               <span style={{fontSize:20,fontWeight:500}}>¥{total.toLocaleString()}</span>
             </div>
             {kuutens.length>0&&(
@@ -2113,8 +2115,8 @@ function App(){
                   cursor:"pointer",color:"var(--info)",
                   display:"flex",alignItems:"center",justifyContent:"center",gap:6,
                 }}>
-                  <i className="ti ti-scan" style={{fontSize:16}}/>
-                  日報スキャン
+                  <i className="ti ti-report" style={{fontSize:16}}/>
+                  出勤・日報入力
                 </button>
               </div>
             )}
@@ -2180,6 +2182,33 @@ function App(){
           );
         })()}
 
+
+        {/* 連続稼働時間 */}
+        {!breakStart&&lastRestEnd&&(()=>{
+          const mins=Math.floor(contiguousSec/60);
+          const hrs=Math.floor(mins/60);
+          const rem=mins%60;
+          const label=hrs>0?`${hrs}時間${rem}分`:`${mins}分`;
+          const limit=389; /* 6時間29分 */
+          const warn=mins>=330; /* 5時間30分 */
+          const danger=mins>=limit;
+          if(mins<30)return null;
+          return(
+            <div style={{
+              marginBottom:8,padding:"8px 12px",borderRadius:"var(--r)",
+              background:danger?"var(--err-bg)":warn?"var(--warn-bg)":"var(--bg2)",
+              border:`0.5px solid ${danger?"var(--err-bd)":warn?"var(--warn-bd)":"var(--bdr)"}`,
+              display:"flex",justifyContent:"space-between",alignItems:"center",
+            }}>
+              <span style={{fontSize:12,color:danger?"var(--err)":warn?"var(--warn)":"var(--txt2)"}}>
+                <i className="ti ti-steering-wheel" style={{marginRight:4}}/>連続稼働
+              </span>
+              <span style={{fontSize:14,fontWeight:500,color:danger?"var(--err)":warn?"var(--warn)":"var(--txt2)"}}>
+                {label}{danger?" ⚠️ 要休憩":warn?" もうすぐ6.5h":""}
+              </span>
+            </div>
+          );
+        })()}
         {/* 休憩中バナー */}
         {breakStart&&(          <div style={{background:"var(--ok-bg)",border:"1.5px solid var(--ok-bd)",borderRadius:"var(--rl)",padding:"12px 14px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div>
@@ -2210,13 +2239,13 @@ function App(){
               <span style={{fontSize:13,fontWeight:500,color:"var(--ok)"}}>
                 <i className="ti ti-coffee" style={{marginRight:4}}/>休憩
               </span>
-              <span style={{fontSize:13,color:totalBreakMins>=TARGET_BREAK_MINS?"var(--ok)":"var(--txt2)"}}>
-                {totalBreakMins}分 / 目標{TARGET_BREAK_MINS}分
+              <span style={{fontSize:13,color:totalBreakMins>=130?"var(--ok)":totalBreakMins>=90?"var(--warn)":"var(--txt2)"}}>
+                {totalBreakMins>=130?"✓ "+totalBreakMins+"分（目標達成）":"あと"+(130-totalBreakMins)+"分で130分"}
               </span>
             </div>
-            {/* プログレスバー */}
-            <div style={{height:4,background:"var(--bg2)",borderRadius:2,marginBottom:8}}>
-              <div style={{height:4,borderRadius:2,background:"var(--ok)",width:`${Math.min(100,totalBreakMins/TARGET_BREAK_MINS*100)}%`,transition:"width .3s"}}/>
+            {/* プログレスバー 130分基準 */}
+            <div style={{height:5,background:"var(--bg2)",borderRadius:3,marginBottom:8,position:"relative"}}>
+              <div style={{height:5,borderRadius:3,background:totalBreakMins>=130?"var(--ok)":totalBreakMins>=90?"var(--warn)":"var(--err)",width:`${Math.min(100,totalBreakMins/130*100)}%`,transition:"width .3s"}}/>
             </div>
             {breaks.map((b,i)=>(
               <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,color:"var(--txt2)",padding:"3px 0",borderTop:i>0?"0.5px solid var(--bdr)":"none"}}>
@@ -2285,7 +2314,7 @@ function App(){
                   {t.acc!=="専用"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--txt3)"}}>{t.acc}</span>}
                   {t.sankyu!=="通常"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--warn)"}}>{t.sankyu}</span>}
                   {t.kotei!=="N"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--info)"}}>{t.kotei}({KOTEI_LABELS[t.kotei]})</span>}
-                  {t.custType==="インバウンド"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--warn-bd)",color:"var(--warn)",background:"var(--warn-bg)"}}>🌍 インバウンド</span>}
+                  {(()=>{const ct=Array.isArray(t.custType)?t.custType:(t.custType&&t.custType!=="日本人"?[t.custType]:[]);return ct.length>0&&ct.map(v=><span key={v} style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr2)",color:"var(--txt2)",background:"var(--bg2)",marginRight:3}}>{v}</span>);})()}
                 </div>
                 {t.memo&&<p style={{fontSize:12,color:"var(--txt3)",margin:"4px 0 0",lineHeight:1.4}}>{t.memo}</p>}
                 {/* 要修正メモ欄（フラグON時のみ）*/}
@@ -2362,8 +2391,15 @@ function App(){
         ))}
       </div>
 
-      {/* ボトムバー：乗車・空転・休憩 */}
+      {/* ボトムバー：乗車→休憩→空転 */}
       <div style={S.bottomBar}>
+        <button onClick={()=>{resetTripForm();setScreen("form");}} style={{
+          ...S.bbBtn,color:"var(--info)"
+        }}>
+          <i className="ti ti-plus" style={{fontSize:26,fontWeight:300}}/>
+          乗車
+        </button>
+        <div style={{width:"0.5px",background:"var(--bdr)",alignSelf:"stretch",margin:"10px 0"}}/>
         <button onClick={breakStart?endBreak:startBreak} style={{
           ...S.bbBtn,
           color:breakStart?"var(--ok)":"var(--txt2)",
@@ -2378,13 +2414,6 @@ function App(){
         }}>
           <i className="ti ti-alert-triangle" style={{fontSize:22}}/>
           空転
-        </button>
-        <div style={{width:"0.5px",background:"var(--bdr)",alignSelf:"stretch",margin:"10px 0"}}/>
-        <button onClick={()=>{resetTripForm();setScreen("form");}} style={{
-          ...S.bbBtn,color:"var(--info)"
-        }}>
-          <i className="ti ti-plus" style={{fontSize:26,fontWeight:300}}/>
-          乗車
         </button>
       </div>
 
