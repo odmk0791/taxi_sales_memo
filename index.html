@@ -1044,11 +1044,20 @@ function App(){
     setShowRank02(false);
   };
 
-  /* ── 日報スキャン（AI読み取り）── */
+  /* ── 日報スキャン（Gemini AI読み取り）── */
+  const GEMINI_KEY_STORAGE="eimu_gemini_key";
   const scanNippou=async(imgData,imgType)=>{
+    /* APIキー確認 */
+    let apiKey=localStorage.getItem(GEMINI_KEY_STORAGE);
+    if(!apiKey){
+      const k=prompt("Google Gemini APIキーを入力してください\n（aistudio.google.comで取得・無料）");
+      if(!k){setNippouScreen("idle");return;}
+      localStorage.setItem(GEMINI_KEY_STORAGE,k.trim());
+      apiKey=k.trim();
+    }
     setNippouScreen("scanning"); setNScanError("");
     /* 出勤記録から引き継ぎ */
-    const saved=(() => {try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null");}catch{return null;}})();
+    const saved=(()=>{try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null");}catch{return null;}})();
     if(saved)setNippouForm(f=>({...f,
       shukkin:saved.shukkin||f.shukkin, musen:saved.musen||f.musen,
       taxi:saved.taxi||f.taxi, kurotaku:saved.kurotaku||f.kurotaku,
@@ -1057,31 +1066,34 @@ function App(){
     }));
     try{
       const isPdf=imgType==="application/pdf";
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",max_tokens:1000,
-          messages:[{role:"user",content:[
-            isPdf
-              ?{type:"document",source:{type:"base64",media_type:"application/pdf",data:imgData}}
-              :{type:"image",source:{type:"base64",media_type:imgType,data:imgData}},
-            {type:"text",text:SCAN_PROMPT}
-          ]}]
-        })
-      });
+      const part=isPdf
+        ?{inline_data:{mime_type:"application/pdf",data:imgData}}
+        :{inline_data:{mime_type:imgType,data:imgData}};
+      const res=await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {method:"POST",headers:{"Content-Type":"application/json"},
+         body:JSON.stringify({contents:[{parts:[part,{text:SCAN_PROMPT}]}]})}
+      );
+      if(!res.ok){
+        const err=await res.json().catch(()=>({}));
+        if(res.status===400||res.status===401){
+          localStorage.removeItem(GEMINI_KEY_STORAGE);
+          throw new Error("APIキーが無効です。再入力してください。");
+        }
+        throw new Error(`APIエラー(${res.status}): ${err?.error?.message||"不明"}`);
+      }
       const json=await res.json();
-      const text=json.content.map(i=>i.text||"").join("");
+      const text=(json.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("");
       const p=JSON.parse(text.replace(/```json|```/g,"").trim());
       setNippouForm(f=>({...f,
         date:p["日付"]||"",dow:p["曜日"]||"",nokin:p["納金額"]||"",
         eishu:p["営収"]||"",kaisu:p["回数"]||"",handle:p["ハンドル時間"]||"",
         kyukei:p["休憩時間"]||"",zensokou:p["全走行距離"]||"",
-        jissha:p["実車走行距離"]||"",
-        musen:p["無線番号"]||f.musen, /* 出勤記録があれば上書きしない */
+        jissha:p["実車走行距離"]||"",musen:p["無線番号"]||f.musen,
       }));
       setNippouScreen("form");
-    }catch{
-      setNScanError("読み取りに失敗しました。もう一度お試しください。");
+    }catch(err){
+      setNScanError(err.message||"読み取りに失敗しました。もう一度お試しください。");
       setNippouScreen("idle");
     }
   };
@@ -1398,6 +1410,14 @@ function App(){
             <p style={{fontSize:16,fontWeight:500,margin:0}}>日報スキャン</p>
             <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>写真を撮影してAIが自動読み取り</p>
           </div>
+          <button onClick={()=>{
+            if(confirm("APIキーをリセットしますか？")){
+              localStorage.removeItem("eimu_gemini_key");
+              alert("リセットしました。次回スキャン時に再入力してください。");
+            }
+          }} style={{background:"none",border:"none",fontSize:11,color:"var(--txt3)",cursor:"pointer",padding:"4px 6px"}}>
+            🔑 キー
+          </button>
         </div>
         <div style={S.body}>
 
