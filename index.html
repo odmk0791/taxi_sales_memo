@@ -1115,7 +1115,11 @@ function App(){
     setNippouSending(true);
     const ok=await submitNippouToForm(nippouForm);
     setNippouSending(false);
-    if(ok){setNippouScreen("idle");setScreen("log");}
+    if(ok){
+      /* 日報欄をリセット（次回入力用）、出勤情報は保持 */
+      setNippouForm(f=>({...f,nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",zensokou:"",jissha:"",taisha:"",date:""}));
+      setScreen("log");
+    }
     else alert("送信に失敗しました");
   };
 
@@ -1346,58 +1350,43 @@ function App(){
         </div>
         <div style={S.body}>
 
-          {/* 日報から入力（7項目）*/}
-          <div style={S.card}>
-            <p style={{fontSize:11,color:"var(--info)",fontWeight:500,margin:"0 0 10px"}}>
-              ② 帰庫後・日報から入力
-            </p>
-            <div style={{marginBottom:8}}>
-              <label style={S.lbl}>日付</label>
-              <input type="text" value={nippouForm.date}
-                onChange={e=>setNF("date",e.target.value)}
-                placeholder="2026/06/06"
-                style={{...S.inp,width:140}}/>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              {[
-                {l:"納金額（円）",f:"nokin",mode:"tel"},
-                {l:"営収（円）",f:"eishu",mode:"tel"},
-                {l:"回数",f:"kaisu",mode:"tel"},
-                {l:"ハンドル時間",f:"handle",mode:"text",ph:"17:36"},
-                {l:"休憩時間",f:"kyukei",mode:"text",ph:"2:40"},
-                {l:"全走行距離（km）",f:"zensokou",mode:"tel"},
-                {l:"実車走行距離（km）",f:"jissha",mode:"tel"},
-              ].map(({l,f,mode,ph})=>(
-                <div key={f}>
-                  <label style={{fontSize:10,color:"var(--txt3)",display:"block",marginBottom:2}}>{l}</label>
-                  <input type={mode} inputMode={mode==="tel"?"numeric":"text"}
-                    value={nippouForm[f]} onChange={e=>setNF(f,e.target.value)}
-                    placeholder={ph||""}
-                    style={{...S.inp,fontSize:15,padding:"8px"}}/>
-                </div>
-              ))}
-            </div>
+          {/* 日付カード（単独）*/}
+          <div style={{...S.card,display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+            <span style={{fontSize:12,color:"var(--txt3)",flexShrink:0}}>日付</span>
+            <input type="text" value={nippouForm.date}
+              onChange={e=>setNF("date",e.target.value)}
+              placeholder="2026/06/07"
+              style={{...S.inp,width:130,fontFamily:"var(--mono)"}}/>
+            <button onClick={()=>setNF("date",getShiftDate())} style={{
+              padding:"6px 10px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",
+              borderRadius:"var(--r)",fontSize:12,cursor:"pointer",color:"var(--txt3)",flexShrink:0
+            }}>今日</button>
           </div>
 
-          {/* 事前入力セクション（出勤時）*/}
+          {/* ① 出勤時に入力 */}
           <div style={S.card}>
-            <p style={{fontSize:11,color:"var(--ok)",fontWeight:500,margin:"0 0 10px"}}>
+            <p style={{fontSize:11,color:"var(--ok)",fontWeight:600,margin:"0 0 10px"}}>
               ① 出勤時に入力
             </p>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
               <div>
                 <label style={S.lbl}>出勤時刻</label>
-                <input type="tel" value={nippouForm.shukkin}
-                  onChange={e=>setNF("shukkin",fmtTimeInput(e.target.value))}
-                  placeholder="15:55"
-                  style={{...S.inp,fontFamily:"var(--mono)",textAlign:"center"}}/>
+                <div style={{display:"flex",gap:6}}>
+                  <input type="tel" value={nippouForm.shukkin}
+                    onChange={e=>setNF("shukkin",fmtTimeInput(e.target.value))}
+                    placeholder="15:55"
+                    style={{...S.inp,flex:1,fontFamily:"var(--mono)",textAlign:"center"}}/>
+                  <button onClick={()=>setNF("shukkin",getShiftNow())} style={{
+                    padding:"0 8px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",
+                    borderRadius:"var(--r)",fontSize:11,cursor:"pointer",color:"var(--txt3)"
+                  }}>今</button>
+                </div>
               </div>
               <div>
-                <label style={S.lbl}>退社時刻</label>
-                <input type="tel" value={nippouForm.taisha}
-                  onChange={e=>setNF("taisha",fmtTimeInput(e.target.value))}
-                  placeholder="36:30"
-                  style={{...S.inp,fontFamily:"var(--mono)",textAlign:"center"}}/>
+                <label style={S.lbl}>無線番号</label>
+                <input type="tel" value={nippouForm.musen}
+                  onChange={e=>setNF("musen",e.target.value)}
+                  style={{...S.inp,fontFamily:"var(--mono)"}}/>
               </div>
               <div>
                 <label style={S.lbl}>RANK01</label>
@@ -1406,15 +1395,9 @@ function App(){
                   style={S.inp}/>
               </div>
               <div>
-                <label style={S.lbl}>RANK02</label>
+                <label style={S.lbl}>RANK02（28時頃）</label>
                 <input type="tel" value={nippouForm.rank02}
                   onChange={e=>setNF("rank02",e.target.value)}
-                  style={S.inp}/>
-              </div>
-              <div>
-                <label style={S.lbl}>無線番号</label>
-                <input type="tel" value={nippouForm.musen}
-                  onChange={e=>setNF("musen",e.target.value)}
                   style={S.inp}/>
               </div>
               <div>
@@ -1436,7 +1419,7 @@ function App(){
               ))}
             </div>
             <label style={S.lbl}>黒タク区分</label>
-            <div style={{display:"flex",gap:8}}>
+            <div style={{display:"flex",gap:8,marginBottom:12}}>
               {["黒","青","P"].map(t=>(
                 <button key={t} onClick={()=>setNF("kurotaku",t)} style={{
                   flex:1,padding:"9px",borderRadius:"var(--r)",cursor:"pointer",fontSize:14,
@@ -1446,19 +1429,43 @@ function App(){
                 }}>{t}</button>
               ))}
             </div>
+            <button onClick={saveTemp} style={{
+              width:"100%",padding:"11px",background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
+              borderRadius:"var(--r)",fontSize:14,fontWeight:500,cursor:"pointer",color:"var(--ok)"
+            }}>
+              💾 一時保存（出勤時）
+            </button>
           </div>
 
-          <div style={{display:"flex",gap:8,marginTop:4}}>
-            <button onClick={saveTemp} style={{
-              flex:1,padding:14,background:"var(--bg2)",border:"0.5px solid var(--bdr2)",
-              borderRadius:"var(--rl)",fontSize:14,fontWeight:500,cursor:"pointer",color:"var(--txt2)"
-            }}>
-              💾 一時保存
-            </button>
+          {/* ② 帰庫後・日報から入力 */}
+          <div style={S.card}>
+            <p style={{fontSize:11,color:"var(--info)",fontWeight:600,margin:"0 0 10px"}}>
+              ② 帰庫後・日報から入力
+            </p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+              {[
+                {l:"納金額（円）",f:"nokin",mode:"tel"},
+                {l:"営収（円）",f:"eishu",mode:"tel"},
+                {l:"回数",f:"kaisu",mode:"tel"},
+                {l:"退社時刻",f:"taisha",mode:"tel",ph:"36:30"},
+                {l:"ハンドル時間",f:"handle",mode:"text",ph:"17:36"},
+                {l:"休憩時間",f:"kyukei",mode:"text",ph:"2:40"},
+                {l:"全走行距離(km)",f:"zensokou",mode:"tel"},
+                {l:"実車走行距離(km)",f:"jissha",mode:"tel"},
+              ].map(({l,f,mode,ph})=>(
+                <div key={f}>
+                  <label style={{fontSize:10,color:"var(--txt3)",display:"block",marginBottom:2}}>{l}</label>
+                  <input type={mode} inputMode={mode==="tel"?"numeric":"text"}
+                    value={nippouForm[f]} onChange={e=>setNF(f,e.target.value)}
+                    placeholder={ph||""}
+                    style={{...S.inp,fontSize:15,padding:"8px"}}/>
+                </div>
+              ))}
+            </div>
             <button onClick={saveNippou} disabled={!canSend} style={{
-              flex:2,padding:14,background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
-              borderRadius:"var(--rl)",fontSize:14,fontWeight:500,
-              cursor:canSend?"pointer":"default",color:"var(--ok)",opacity:canSend?1:0.4
+              width:"100%",padding:14,background:"var(--info-bg)",border:"0.5px solid var(--info-bd)",
+              borderRadius:"var(--r)",fontSize:15,fontWeight:500,
+              cursor:canSend?"pointer":"default",color:"var(--info)",opacity:canSend?1:0.4
             }}>
               {nippouSending?"送信中…":"✓ シートに送信"}
             </button>
@@ -2032,7 +2039,16 @@ function App(){
               const msg=fixCount>0
                 ?`要修正フラグが ${fixCount}件 あります。\n修正完了しましたか？\n\n「OK」で全記録を削除します。`
                 :"今日の全記録を削除しますか？";
-              if(confirm(msg)){setTrips([]);setKuutens([]);setBreaks([]);setShiftMemo("");setShowFixOnly(false);}
+              if(confirm(msg)){
+                setTrips([]);setKuutens([]);setBreaks([]);setShiftMemo("");setShowFixOnly(false);
+                /* 出勤・日報データも全クリア */
+                setNippouForm({date:"",dow:"",nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",
+                  zensokou:"",jissha:"",musen:"",shukkin:"",taisha:"",
+                  rank01:"",rank02:"",taxi:"JAP",kurotaku:"青",deban:"J"});
+                setShukkinForm({shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:"",rank02:""});
+                setLastRestEnd(null);
+                try{localStorage.removeItem(NIPPOU_START_KEY);localStorage.removeItem("eimu_last_rest_end");}catch{}
+              }
             }} style={{padding:"7px 10px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--err)"}}>
               <i className="ti ti-trash"/>
             </button>
