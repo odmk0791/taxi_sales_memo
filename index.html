@@ -2141,46 +2141,7 @@ function App(){
           </div>
         )}
 
-        {/* RANK02 クイック入力（28時頃）*/}
-        {(()=>{
-          const r2=shukkinForm.rank02;
-          return(
-            <>
-              {showRank02?(
-                <div style={{background:"var(--warn-bg)",border:"1.5px solid var(--warn-bd)",borderRadius:"var(--rl)",padding:"12px 14px",marginBottom:10}}>
-                  <p style={{fontSize:12,color:"var(--warn)",fontWeight:500,margin:"0 0 8px"}}>
-                    📊 RANK02を入力（28時頃）
-                  </p>
-                  <div style={{display:"flex",gap:8}}>
-                    <input type="tel" id="rank02input" defaultValue={r2}
-                      placeholder="例：9000"
-                      style={{...S.inp,flex:1,fontFamily:"var(--mono)",fontSize:16}}
-                      onKeyDown={e=>{if(e.key==="Enter")saveRank02(e.target.value);}}/>
-                    <button onClick={()=>saveRank02(document.getElementById("rank02input").value)}
-                      style={{padding:"0 16px",background:"var(--warn)",border:"none",borderRadius:"var(--r)",fontSize:14,fontWeight:500,cursor:"pointer",color:"#fff",flexShrink:0}}>
-                      保存
-                    </button>
-                    <button onClick={()=>setShowRank02(false)}
-                      style={{padding:"0 10px",background:"none",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--txt3)"}}>
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              ):(
-                <div style={{textAlign:"right",marginBottom:4}}>
-                  <button onClick={()=>setShowRank02(true)} style={{
-                    padding:"5px 12px",borderRadius:16,cursor:"pointer",fontSize:12,
-                    border:`0.5px solid ${r2?"var(--ok-bd)":"var(--warn-bd)"}`,
-                    background:r2?"var(--ok-bg)":"var(--warn-bg)",
-                    color:r2?"var(--ok)":"var(--warn)",
-                  }}>
-                    📊 RANK02 {r2?`= ${r2} ✓`:"未入力"}
-                  </button>
-                </div>
-              )}
-            </>
-          );
-        })()}
+
 
 
         {/* 連続稼働時間 */}
