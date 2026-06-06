@@ -1056,12 +1056,15 @@ function App(){
       rank02:saved.rank02||f.rank02,
     }));
     try{
+      const isPdf=imgType==="application/pdf";
       const res=await fetch("https://api.anthropic.com/v1/messages",{
         method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
           model:"claude-sonnet-4-20250514",max_tokens:1000,
           messages:[{role:"user",content:[
-            {type:"image",source:{type:"base64",media_type:imgType,data:imgData}},
+            isPdf
+              ?{type:"document",source:{type:"base64",media_type:"application/pdf",data:imgData}}
+              :{type:"image",source:{type:"base64",media_type:imgType,data:imgData}},
             {type:"text",text:SCAN_PROMPT}
           ]}]
         })
@@ -1406,22 +1409,42 @@ function App(){
                   {nScanError}
                 </p>
               )}
-              <label style={{
-                display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-                gap:10,padding:"32px 20px",
-                background:"var(--info-bg)",border:"1.5px dashed var(--info-bd)",
-                borderRadius:"var(--rl)",cursor:nippouScreen==="scanning"?"default":"pointer",
-                color:"var(--info)",
-              }}>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:12,padding:"24px 16px",
+                background:"var(--bg2)",border:"1px solid var(--bdr)",borderRadius:"var(--rl)"}}>
                 {nippouScreen==="scanning"
-                  ?<><i className="ti ti-loader-2" style={{fontSize:40,animation:"spin 1s linear infinite"}}/>
-                    <span style={{fontSize:14,fontWeight:500}}>読み取り中…</span></>
-                  :<><i className="ti ti-camera" style={{fontSize:40}}/>
-                    <span style={{fontSize:15,fontWeight:500}}>日報を撮影・選択</span>
-                    <span style={{fontSize:11,color:"var(--txt3)"}}>印刷された日報の右側（点呼用）を撮影</span></>
+                  ?<><i className="ti ti-loader-2" style={{fontSize:40,color:"var(--info)",animation:"spin 1s linear infinite"}}/>
+                    <span style={{fontSize:14,fontWeight:500,color:"var(--txt2)"}}>読み取り中…</span></>
+                  :<>
+                    <i className="ti ti-scan" style={{fontSize:36,color:"var(--txt2)"}}/>
+                    <span style={{fontSize:13,color:"var(--txt2)",fontWeight:500}}>日報を読み取る方法を選択</span>
+                    <div style={{display:"flex",gap:10,width:"100%"}}>
+                      <label style={{
+                        flex:1,padding:"14px 8px",borderRadius:"var(--r)",cursor:"pointer",
+                        background:"var(--info-bg)",border:"1.5px solid var(--info-bd)",
+                        display:"flex",flexDirection:"column",alignItems:"center",gap:5,
+                        color:"var(--info)",fontSize:13,fontWeight:500,
+                      }}>
+                        <i className="ti ti-camera" style={{fontSize:24}}/>
+                        カメラ撮影
+                        <input type="file" accept="image/*" capture="environment" onChange={handleImg} style={{display:"none"}}/>
+                      </label>
+                      <label style={{
+                        flex:1,padding:"14px 8px",borderRadius:"var(--r)",cursor:"pointer",
+                        background:"var(--warn-bg)",border:"1.5px solid var(--warn-bd)",
+                        display:"flex",flexDirection:"column",alignItems:"center",gap:5,
+                        color:"var(--warn)",fontSize:13,fontWeight:500,
+                      }}>
+                        <i className="ti ti-file-type-pdf" style={{fontSize:24}}/>
+                        PDF・画像
+                        <input type="file" accept="image/*,application/pdf" onChange={handleImg} style={{display:"none"}}/>
+                      </label>
+                    </div>
+                    <span style={{fontSize:11,color:"var(--txt3)",textAlign:"center",lineHeight:1.5}}>
+                      📱 ファイルアプリの書類スキャンで保存したPDFも使えます
+                    </span>
+                  </>
                 }
-                {nippouScreen==="idle"&&<input type="file" accept="image/*" capture="environment" onChange={handleImg} style={{display:"none"}}/>}
-              </label>
+              </div>
             </>
           )}
 
