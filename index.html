@@ -1163,8 +1163,8 @@ function App(){
   const fixCount=trips.filter(t=>t.needsFix).length+kuutens.filter(k=>k.needsFix).length;
   /* フラグが全件オフになったら自動的に絞り込み解除 */
   const effectiveFix=showFixOnly&&fixCount>0;
-  const displayTrips=effectiveFix?trips.filter(t=>t.needsFix):trips;
-  const displayKuutens=effectiveFix?kuutens.filter(k=>k.needsFix):kuutens;
+  const displayTrips=effectiveFix?trips.filter(t=>t.needsFix).slice().reverse():trips.slice().reverse();
+  const displayKuutens=effectiveFix?kuutens.filter(k=>k.needsFix).slice().reverse():kuutens.slice().reverse();
   const totalBreakMins=breaks.reduce((s,b)=>s+b.minutes,0);
   const formatElapsed=s=>`${Math.floor(s/60)}:${pad2(s%60)}`;
 
