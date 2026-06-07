@@ -2406,7 +2406,10 @@ function App(){
                       resize:"none",boxSizing:"border-box"}}
             />
             {shiftMemo&&(
-              <button onClick={()=>{if(confirm("メモを削除しますか？"))setShiftMemo("");}} style={{
+              <button onClick={()=>{
+                setShiftMemo("");
+                try{localStorage.removeItem("eimu_shift_memo");}catch{}
+              }} style={{
                 marginTop:6,padding:"4px 10px",background:"none",border:"none",
                 fontSize:12,cursor:"pointer",color:"var(--err)"
               }}>メモを削除</button>
