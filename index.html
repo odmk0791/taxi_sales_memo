@@ -1987,26 +1987,7 @@ function App(){
           <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>{trips[0]?.date||getShiftDate()}</p>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
-          {/* 出勤・日報ボタン */}
-          <button onClick={()=>{
-            const saved=(()=>{try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null");}catch{return null;}})();
-            setNippouForm(f=>({...f,
-              date:getShiftDate(),
-              dow:["日","月","火","水","木","金","土"][new Date().getDay()],
-              shukkin:saved?.shukkin||"",musen:saved?.musen||"",
-              taxi:saved?.taxi||"JAP",kurotaku:saved?.kurotaku||"青",
-              deban:saved?.deban||"J",rank01:saved?.rank01||"",
-              rank02:saved?.rank02||shukkinForm.rank02||"",taisha:"",
-              nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",zensokou:"",jissha:"",
-            }));
-            setScreen("nippou_scan");
-          }} style={{
-            display:"flex",alignItems:"center",gap:4,padding:"7px 11px",
-            background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
-            borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--ok)",fontWeight:500,
-          }} title="出勤・日報入力">
-            <i className="ti ti-report"/>日報
-          </button>
+          {/* 出勤記録ボタン削除済み - 合計カードの日報ボタンを使用 */}
           {/* シフトメモボタン */}
           <button onClick={()=>setShowMemo(true)} style={{
             display:"flex",alignItems:"center",gap:4,padding:"7px 11px",
@@ -2111,31 +2092,34 @@ function App(){
                   <i className="ti ti-coins" style={{fontSize:16}}/>
                   納金用データ作成
                 </button>
-                <button onClick={()=>{
-                  const saved=(()=>{try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null");}catch{return null;}})();
-                  const r2=shukkinForm.rank02||"";
-                  setNippouForm(f=>({...f,
-                    date:getShiftDate(),
-                    dow:["日","月","火","水","木","金","土"][new Date().getDay()],
-                    shukkin:saved?.shukkin||"", musen:saved?.musen||"",
-                    taxi:saved?.taxi||"JAP", kurotaku:saved?.kurotaku||"青",
-                    deban:saved?.deban||"J", rank01:saved?.rank01||"",
-                    rank02:r2, taisha:"",
-                    nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",zensokou:"",jissha:"",
-                  }));
-                  setScreen("nippou_scan");
-                }} style={{
-                  width:"100%",padding:"10px",
-                  background:"var(--info-bg)",border:"0.5px solid var(--info-bd)",
-                  borderRadius:"var(--r)",fontSize:14,fontWeight:500,
-                  cursor:"pointer",color:"var(--info)",
-                  display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-                }}>
-                  <i className="ti ti-report" style={{fontSize:16}}/>
-                  出勤・日報入力
-                </button>
               </div>
             )}
+            {/* 日報ボタンは常時表示 */}
+            <div style={{paddingTop:trips.length>0?0:8,marginTop:trips.length>0?0:6,borderTop:trips.length>0?"none":"0.5px solid var(--bdr)"}}>
+              <button onClick={()=>{
+                const saved=(()=>{try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null");}catch{return null;}})();
+                const r2=shukkinForm.rank02||"";
+                setNippouForm(f=>({...f,
+                  date:getShiftDate(),
+                  dow:["日","月","火","水","木","金","土"][new Date().getDay()],
+                  shukkin:saved?.shukkin||"", musen:saved?.musen||"",
+                  taxi:saved?.taxi||"JAP", kurotaku:saved?.kurotaku||"青",
+                  deban:saved?.deban||"J", rank01:saved?.rank01||"",
+                  rank02:r2, taisha:"",
+                  nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",zensokou:"",jissha:"",
+                }));
+                setScreen("nippou_scan");
+              }} style={{
+                width:"100%",padding:"10px",marginTop:trips.length>0?6:0,
+                background:"var(--info-bg)",border:"0.5px solid var(--info-bd)",
+                borderRadius:"var(--r)",fontSize:14,fontWeight:500,
+                cursor:"pointer",color:"var(--info)",
+                display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+              }}>
+                <i className="ti ti-report" style={{fontSize:16}}/>
+                出勤・日報入力
+              </button>
+            </div>
           </div>
         )}
 
