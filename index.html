@@ -96,6 +96,8 @@ const REST_FIELDS = {
   startTime: "entry.1315592223",
   endTime:   "entry.390004713",
   minutes:   "entry.2125989415",
+  lat:       "entry.1000420178",
+  lng:       "entry.2110064235",
   memo:      "entry.472039999",
 };
 const BREAK_STORE_KEY  = "eimu_breaks_v1";
@@ -493,6 +495,8 @@ async function submitBreakToForm(b){
     [REST_FIELDS.startTime]: b.startTime,
     [REST_FIELDS.endTime]:   b.endTime,
     [REST_FIELDS.minutes]:   String(b.minutes),
+    [REST_FIELDS.lat]:       b.lat||"",
+    [REST_FIELDS.lng]:       b.lng||"",
     [REST_FIELDS.memo]:      b.memo||"",
   };
   Object.entries(map).forEach(([k,v])=>body.append(k,v));
@@ -938,12 +942,18 @@ function App(){
   };
 
   /* ── 休憩開始 ── */
+  const [breakLat,setBreakLat]=useState(null);
+  const [breakLng,setBreakLng]=useState(null);
+
   const startBreak=()=>{
     const now=getShiftNow();
     const ts=Date.now();
     setBreakStart(now); setBreakStartTs(ts); setElapsed(0);
     localStorage.setItem("eimu_break_start",now);
     localStorage.setItem("eimu_break_ts",String(ts));
+    /* GPS取得（バックグラウンド、失敗しても休憩は開始）*/
+    setBreakLat(null); setBreakLng(null);
+    getGPS().then(({lat,lng})=>{setBreakLat(lat);setBreakLng(lng);}).catch(()=>{});
   };
 
   /* ── 休憩終了 ── */
@@ -954,12 +964,15 @@ function App(){
     let diff=toM(endTime)-toM(breakStart);
     if(diff<0)diff+=24*60;
     const minutes=Math.round(diff);
-    const rec={id:Date.now(),date:getShiftDate(),startTime:breakStart,endTime,minutes,memo:"",synced:false};
+    const rec={id:Date.now(),date:getShiftDate(),startTime:breakStart,endTime,minutes,
+               lat:breakLat?String(breakLat.toFixed(6)):"",
+               lng:breakLng?String(breakLng.toFixed(6)):"",memo:"",synced:false};
     const now=Date.now();setLastRestEnd(now);try{localStorage.setItem("eimu_last_rest_end",now);}catch{}
     const ok=await submitBreakToForm(rec);
     rec.synced=ok;
     setBreaks(bs=>[...bs,rec]);
     setBreakStart(null); setBreakStartTs(null); setElapsed(0);
+    setBreakLat(null); setBreakLng(null);
     localStorage.removeItem("eimu_break_start");
     localStorage.removeItem("eimu_break_ts");
   };
