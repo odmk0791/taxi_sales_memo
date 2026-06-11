@@ -1354,7 +1354,12 @@ function App(){
           <div style={{...S.card,display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
             <span style={{fontSize:12,color:"var(--txt3)",flexShrink:0}}>日付</span>
             <input type="text" value={nippouForm.date}
-              onChange={e=>setNF("date",e.target.value)}
+              onChange={e=>{
+                const v=e.target.value;
+                setNF("date",v);
+                const m=v.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+                if(m){const dow=["日","月","火","水","木","金","土"][new Date(+m[1],+m[2]-1,+m[3]).getDay()];setNF("dow",dow);}
+              }}
               placeholder="2026/06/07"
               style={{...S.inp,width:130,fontFamily:"var(--mono)"}}/>
             <button onClick={()=>setNF("date",getShiftDate())} style={{
@@ -2094,14 +2099,23 @@ function App(){
                 </button>
               </div>
             )}
-            {/* 日報ボタンは常時表示 */}
-            <div style={{paddingTop:trips.length>0?0:8,marginTop:trips.length>0?0:6,borderTop:trips.length>0?"none":"0.5px solid var(--bdr)"}}>
+          </div>
+        )}
+
+        {/* ③ 日報ボタン：常時表示 / ④ 15:30以降のみ有効 */}
+        {(()=>{
+          const t=getShiftNow().split(":");
+          const mins=parseInt(t[0])*60+parseInt(t[1]||0);
+          const ready=mins>=15*60+30; /* 15:30以降 */
+          return(
+            <div style={{...S.card,marginBottom:10}}>
               <button onClick={()=>{
+                if(!ready){alert("日報入力は15:30以降に使用できます");return;}
                 const saved=(()=>{try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null");}catch{return null;}})();
                 const r2=shukkinForm.rank02||"";
                 setNippouForm(f=>({...f,
                   date:getShiftDate(),
-                  dow:["日","月","火","水","木","金","土"][new Date().getDay()],
+                  dow:(()=>{const sd=getShiftDate();const[y,m,d]=sd.split('/').map(Number);return["日","月","火","水","木","金","土"][new Date(y,m-1,d).getDay()];})(),
                   shukkin:saved?.shukkin||"", musen:saved?.musen||"",
                   taxi:saved?.taxi||"JAP", kurotaku:saved?.kurotaku||"青",
                   deban:saved?.deban||"J", rank01:saved?.rank01||"",
@@ -2110,18 +2124,20 @@ function App(){
                 }));
                 setScreen("nippou_scan");
               }} style={{
-                width:"100%",padding:"10px",marginTop:trips.length>0?6:0,
-                background:"var(--info-bg)",border:"0.5px solid var(--info-bd)",
+                width:"100%",padding:"12px",
+                background:ready?"var(--info-bg)":"var(--bg2)",
+                border:`0.5px solid ${ready?"var(--info-bd)":"var(--bdr2)"}`,
                 borderRadius:"var(--r)",fontSize:14,fontWeight:500,
-                cursor:"pointer",color:"var(--info)",
+                cursor:"pointer",color:ready?"var(--info)":"var(--txt3)",
                 display:"flex",alignItems:"center",justifyContent:"center",gap:6,
               }}>
                 <i className="ti ti-report" style={{fontSize:16}}/>
                 出勤・日報入力
+                {!ready&&<span style={{fontSize:11}}> （15:30〜）</span>}
               </button>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* 下書きバナー */}
         {hasDraft&&(
