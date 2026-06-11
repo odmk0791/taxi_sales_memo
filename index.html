@@ -1291,8 +1291,8 @@ function App(){
                   <span style={{fontSize:13,color:"var(--txt2)"}}>
                     売上 ¥{grouped.cash.total.toLocaleString()} +
                   </span>
-                  <input type="tel" value={kosouku}
-                    onChange={e=>setKosouku(e.target.value)}
+                  <input type="tel" defaultValue={kosouku}
+                    onBlur={e=>setKosouku(e.target.value)}
                     placeholder="0"
                     style={{...S.inp,width:110,fontFamily:"var(--mono)",textAlign:"right",padding:"6px 8px",fontSize:16}}
                   />
