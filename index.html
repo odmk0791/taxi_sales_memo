@@ -1464,21 +1464,35 @@ function App(){
               {[
                 {l:"納金額（円）",f:"nokin",mode:"tel"},
                 {l:"営収（円）",f:"eishu",mode:"tel"},
-                {l:"回数",f:"kaisu",mode:"tel"},
-                {l:"退社時刻",f:"taisha",mode:"tel",ph:"36:30"},
-                {l:"ハンドル時間",f:"handle",mode:"text",ph:"17:36"},
-                {l:"休憩時間",f:"kyukei",mode:"text",ph:"2:40"},
+                {l:"回数",f:"kaisu",mode:"tel",span:2},
+                {l:"ハンドル時間",f:"handle",mode:"text",ph:"17:36",fmt:"time"},
+                {l:"休憩時間",f:"kyukei",mode:"text",ph:"2:40",fmt:"time"},
                 {l:"全走行距離(km)",f:"zensokou",mode:"tel"},
                 {l:"実車走行距離(km)",f:"jissha",mode:"tel"},
-              ].map(({l,f,mode,ph})=>(
-                <div key={f}>
+              ].map(({l,f,mode,ph,fmt,span})=>(
+                <div key={f} style={span?{gridColumn:"1 / -1"}:{}}>
                   <label style={{fontSize:10,color:"var(--txt3)",display:"block",marginBottom:2}}>{l}</label>
                   <input type={mode} inputMode={mode==="tel"?"numeric":"text"}
-                    value={nippouForm[f]} onChange={e=>setNF(f,e.target.value)}
+                    value={nippouForm[f]}
+                    onChange={e=>setNF(f, fmt==="time"?fmtTimeInput(e.target.value):e.target.value)}
                     placeholder={ph||""}
-                    style={{...S.inp,fontSize:15,padding:"8px"}}/>
+                    style={{...S.inp,fontSize:15,padding:"8px",fontFamily:fmt==="time"?"var(--mono)":"inherit",width:span?"50%":"100%"}}/>
                 </div>
               ))}
+              {/* 退社時刻：フォーマット＋今の時刻ボタン */}
+              <div style={{gridColumn:"1 / -1"}}>
+                <label style={{fontSize:10,color:"var(--txt3)",display:"block",marginBottom:2}}>退社時刻</label>
+                <div style={{display:"flex",gap:6}}>
+                  <input type="tel" value={nippouForm.taisha}
+                    onChange={e=>setNF("taisha",fmtTimeInput(e.target.value))}
+                    placeholder="36:20"
+                    style={{...S.inp,flex:1,fontFamily:"var(--mono)",textAlign:"center",fontSize:16}}/>
+                  <button onClick={()=>setNF("taisha",getShiftNow())} style={{
+                    padding:"0 12px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",
+                    borderRadius:"var(--r)",fontSize:12,cursor:"pointer",color:"var(--txt3)",flexShrink:0,whiteSpace:"nowrap"
+                  }}>今の時刻</button>
+                </div>
+              </div>
             </div>
             <button onClick={saveNippou} disabled={!canSend} style={{
               width:"100%",padding:14,background:"var(--info-bg)",border:"0.5px solid var(--info-bd)",
