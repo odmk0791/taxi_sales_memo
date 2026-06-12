@@ -1487,7 +1487,15 @@ function App(){
                     onChange={e=>setNF("taisha",fmtTimeInput(e.target.value))}
                     placeholder="36:20"
                     style={{...S.inp,flex:1,fontFamily:"var(--mono)",textAlign:"center",fontSize:16}}/>
-                  <button onClick={()=>setNF("taisha",getShiftNow())} style={{
+                  <button onClick={()=>{
+                    const n=new Date();
+                    let h=n.getHours(),min=n.getMinutes();
+                    /* 12:00-15:59は前シフトの終盤 → 36:xx-39:xx */
+                    if(h>=12&&h<16)h+=24;
+                    /* 0:00-11:59は深夜 → 24:xx-35:xx */
+                    else if(h<12)h+=24;
+                    setNF("taisha",`${h}:${String(min).padStart(2,'0')}`);
+                  }} style={{
                     padding:"0 12px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",
                     borderRadius:"var(--r)",fontSize:12,cursor:"pointer",color:"var(--txt3)",flexShrink:0,whiteSpace:"nowrap"
                   }}>今の時刻</button>
@@ -2140,9 +2148,13 @@ function App(){
                 if(!ready){alert("日報入力は15:30以降に使用できます");return;}
                 const saved=(()=>{try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null");}catch{return null;}})();
                 const r2=shukkinForm.rank02||"";
+                /* 乗車記録があればその日付を使う（12時以降も前シフトの日付が正しく入る）*/
+                const shiftDate = trips.length>0 ? trips[0].date : getShiftDate();
+                const [sy,sm,sd2]=shiftDate.split('/').map(Number);
+                const dow2=["日","月","火","水","木","金","土"][new Date(sy,sm-1,sd2).getDay()];
                 setNippouForm(f=>({...f,
-                  date:getShiftDate(),
-                  dow:(()=>{const sd=getShiftDate();const[y,m,d]=sd.split('/').map(Number);return["日","月","火","水","木","金","土"][new Date(y,m-1,d).getDay()];})(),
+                  date:shiftDate,
+                  dow:dow2,,
                   shukkin:saved?.shukkin||"", musen:saved?.musen||"",
                   taxi:saved?.taxi||"JAP", kurotaku:saved?.kurotaku||"青",
                   deban:saved?.deban||"J", rank01:saved?.rank01||"",
