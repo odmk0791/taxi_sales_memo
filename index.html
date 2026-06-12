@@ -2304,6 +2304,7 @@ function App(){
                       ?<span style={{marginLeft:6,color:"var(--ok)"}}>●</span>
                       :<button onClick={async e=>{
                           e.stopPropagation();
+                          if(!confirm("⚠️ すでに送信済みの可能性があります。\n再送すると重複する場合があります。\n\n本当に再送しますか？")){return;}
                           const ok=await submitToForm(t);
                           if(ok){setTrips(ts=>ts.map(x=>x.id===t.id?{...x,synced:true}:x));}
                           else{alert("送信に失敗しました。電波の状態を確認してください。");}
