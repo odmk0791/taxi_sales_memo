@@ -602,6 +602,13 @@ function fmtTimeInput(val){
   return d.slice(0,2)+":"+d.slice(2);
 }
 
+/* 休憩時間専用：末尾2桁を「分」、それより前を「時」とする（230→2:30）*/
+function fmtKyukeiInput(val){
+  const d=val.replace(/[^0-9]/g,"").slice(0,4);
+  if(d.length<=2)return d;
+  return d.slice(0,-2)+":"+d.slice(-2);
+}
+
 function TimeRow({label,val,set,jitsuLabel}){
   return <div style={{marginBottom:10}}>
     <p style={{fontSize:11,color:jitsuLabel?"var(--info)":"var(--txt3)",margin:"0 0 4px"}}>
@@ -1489,7 +1496,7 @@ function App(){
                   <label style={{fontSize:10,color:"var(--txt3)",display:"block",marginBottom:2}}>{l}</label>
                   <input type={mode} inputMode={mode==="tel"?"numeric":"text"}
                     value={nippouForm[f]}
-                    onChange={e=>setNF(f, fmt==="time"?fmtTimeInput(e.target.value):e.target.value)}
+                    onChange={e=>setNF(f, fmt==="time"?(f==="kyukei"?fmtKyukeiInput(e.target.value):fmtTimeInput(e.target.value)):e.target.value)}
                     placeholder={ph||""}
                     style={{...S.inp,fontSize:15,padding:"8px",fontFamily:fmt==="time"?"var(--mono)":"inherit",width:span?"50%":"100%"}}/>
                 </div>
