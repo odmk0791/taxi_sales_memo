@@ -112,6 +112,7 @@ const NIPPOU_FIELDS={
   musen:"entry.311036871", shukkin:"entry.1817750255", taisha:"entry.989775496",
   rank01:"entry.143976913", rank02:"entry.859283838", taxi:"entry.1351674827",
   kurotaku:"entry.1827094756", deban:"entry.1795800053",
+  kinmu:"entry.1733283815",
 };
 const NIPPOU_START_KEY="eimu_nippou_start"; /* 出勤記録localStorage */
 const SCAN_PROMPT=`あなたは日本のタクシードライバーの営業日報「運転者営業日報（点呼用）」を読み取るAIです。画像から以下の項目を正確に読み取り、JSONのみ返してください。説明不要。\n読み取り項目:\n- 日付: 年月日 例"2026/06/03"\n- 曜日: 漢字1文字 例"水"\n- 納金額: 数字のみ 納金明細欄の「納金額」 例"91650"\n- 営収: 数字のみ「営業収入」 例"80500"\n- 回数: 数字のみ「営業回数」 例"22"\n- ハンドル時間: 時間:分 例"17:36"\n- 休憩時間: 時間:分「全休憩時間」 例"2:40"\n- 全走行距離: 数字のみkm不要 例"312"\n- 実車走行距離: 数字のみkm不要 例"146"\n- 無線番号: 車番/シフト欄の数字 例"2084"\n出力:\n{"日付":"...","曜日":"...","納金額":"...","営収":"...","回数":"...","ハンドル時間":"...","休憩時間":"...","全走行距離":"...","実車走行距離":"...","無線番号":"..."}`;
@@ -655,7 +656,7 @@ function App(){
   const [nScanError,setNScanError]=useState("");
   const [nippouSending,setNippouSending]=useState(false);
   const [nippouForm,setNippouForm]=useState({
-    date:"",dow:"",nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",
+    date:"",dow:"",nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",kinmu:"",
     zensokou:"",jissha:"",musen:"",shukkin:"",taisha:"",
     rank01:"",rank02:"",taxi:"JAP",kurotaku:"青",deban:"J",
   });
@@ -1143,7 +1144,7 @@ function App(){
     setNippouSending(false);
     if(ok){
       /* 日報欄をリセット（次回入力用）、出勤情報は保持 */
-      setNippouForm(f=>({...f,nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",zensokou:"",jissha:"",taisha:"",date:""}));
+      setNippouForm(f=>({...f,nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",kinmu:"",zensokou:"",jissha:"",taisha:"",date:""}));
       setScreen("log");
     }
     else alert("送信に失敗しました");
@@ -1480,6 +1481,7 @@ function App(){
                 {l:"回数",f:"kaisu",mode:"tel",span:2},
                 {l:"ハンドル時間",f:"handle",mode:"text",ph:"17:36",fmt:"time"},
                 {l:"休憩時間",f:"kyukei",mode:"text",ph:"2:40",fmt:"time"},
+                {l:"勤務",f:"kinmu",mode:"text",ph:"20:16",fmt:"time",span:2},
                 {l:"全走行距離(km)",f:"zensokou",mode:"tel"},
                 {l:"実車走行距離(km)",f:"jissha",mode:"tel"},
               ].map(({l,f,mode,ph,fmt,span})=>(
@@ -2077,7 +2079,7 @@ function App(){
               if(confirm(msg)){
                 setTrips([]);setKuutens([]);setBreaks([]);setShiftMemo("");setShowFixOnly(false);
                 /* 出勤・日報データも全クリア */
-                setNippouForm({date:"",dow:"",nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",
+                setNippouForm({date:"",dow:"",nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",kinmu:"",
                   zensokou:"",jissha:"",musen:"",shukkin:"",taisha:"",
                   rank01:"",rank02:"",taxi:"JAP",kurotaku:"青",deban:"J"});
                 setShukkinForm({shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:"",rank02:""});
@@ -2173,7 +2175,7 @@ function App(){
                   taxi:saved?.taxi||"JAP", kurotaku:saved?.kurotaku||"青",
                   deban:saved?.deban||"J", rank01:saved?.rank01||"",
                   rank02:r2, taisha:"",
-                  nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",zensokou:"",jissha:"",
+                  nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",kinmu:"",zensokou:"",jissha:"",
                 }));
                 setScreen("nippou_scan");
               }} style={{
