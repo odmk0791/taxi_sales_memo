@@ -351,7 +351,7 @@ const WARD_GROUPS = [
   {label:"多摩",  wards:["三鷹市","武蔵野市"]},
 ];
 
-const {useState,useEffect,useMemo,useCallback} = React;
+const {useState,useEffect,useMemo,useCallback,useRef} = React;
 const pad2 = n => String(n).padStart(2,"0");
 
 /* ── 時刻・日付（16時シフト対応）── */
