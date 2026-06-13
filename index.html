@@ -959,7 +959,7 @@ function App(){
     const id=navigator.geolocation.watchPosition(
       p=>{cachedPos.current={lat:p.coords.latitude,lng:p.coords.longitude};},
       ()=>{},
-      {enableHighAccuracy:false,maximumAge:60000,timeout:15000}
+      {enableHighAccuracy:false,maximumAge:30000,timeout:15000}
     );
     return()=>navigator.geolocation.clearWatch(id);
   },[]);
@@ -970,11 +970,11 @@ function App(){
     setBreakStart(now); setBreakStartTs(ts); setElapsed(0);
     localStorage.setItem("eimu_break_start",now);
     localStorage.setItem("eimu_break_ts",String(ts));
-    /* GPS取得（バックグラウンド、失敗しても休憩は開始）*/
-    setBreakLat(null); setBreakLng(null);
-    /* キャッシュ座標を即座にセット、その後GPS更新を試みる */
+    /* GPSはwatchPositionが休憩中ずっとcachedPosを更新し続ける。
+       タイマーは上で即開始済み。GPSはタイマーに一切影響しない。
+       開始時点でキャッシュがあれば暫定セット、無くても休憩中に拾えればOK */
     if(cachedPos.current){setBreakLat(cachedPos.current.lat);setBreakLng(cachedPos.current.lng);}
-    getGPS().then(({lat,lng})=>{setBreakLat(lat);setBreakLng(lng);cachedPos.current={lat,lng};}).catch(()=>{});
+    else{setBreakLat(null);setBreakLng(null);}
   };
 
   /* ── 休憩終了 ── */
@@ -985,9 +985,13 @@ function App(){
     let diff=toM(endTime)-toM(breakStart);
     if(diff<0)diff+=24*60;
     const minutes=Math.round(diff);
+    /* 休憩中は場所が動かない。終了時点のキャッシュ最新座標を採用（開始時に
+       取れなくても休憩中に一度でも拾えていればここで入る）。無ければ開始時の値 */
+    const finalLat=cachedPos.current?cachedPos.current.lat:breakLat;
+    const finalLng=cachedPos.current?cachedPos.current.lng:breakLng;
     const rec={id:Date.now(),date:getShiftDate(),startTime:breakStart,endTime,minutes,
-               lat:breakLat?String(breakLat.toFixed(6)):"",
-               lng:breakLng?String(breakLng.toFixed(6)):"",memo:"",synced:false};
+               lat:finalLat!=null?String(finalLat.toFixed(6)):"",
+               lng:finalLng!=null?String(finalLng.toFixed(6)):"",memo:"",synced:false};
     const now=Date.now();setLastRestEnd(now);try{localStorage.setItem("eimu_last_rest_end",now);}catch{}
     const ok=await submitBreakToForm(rec);
     rec.synced=ok;
