@@ -340,7 +340,7 @@ function sortAreas(arr){
     return 0;
   });
 }
-const SHIFT_START_HOUR = 16;
+const SHIFT_START_HOUR = 13;
 
 /* 市区の地理グループ（ピッカー表示用）*/
 const WARD_GROUPS = [
@@ -355,7 +355,7 @@ const WARD_GROUPS = [
 const {useState,useEffect,useMemo,useCallback,useRef} = React;
 const pad2 = n => String(n).padStart(2,"0");
 
-/* ── 時刻・日付（16時シフト対応）── */
+/* ── 時刻・日付（13時シフト対応：I番13時/J番16時を13:00〜36:59でくくる）── */
 function getShiftNow(){
   const d=new Date(), h=d.getHours();
   return `${pad2(h < SHIFT_START_HOUR ? h+24 : h)}:${pad2(d.getMinutes())}`;
@@ -1516,10 +1516,9 @@ function App(){
                   <button onClick={()=>{
                     const n=new Date();
                     let h=n.getHours(),min=n.getMinutes();
-                    /* 12:00-15:59は前シフトの終盤 → 36:xx-39:xx */
-                    if(h>=12&&h<16)h+=24;
-                    /* 0:00-11:59は深夜 → 24:xx-35:xx */
-                    else if(h<12)h+=24;
+                    /* 13時シフト境界：13時より前は前シフト扱いで+24
+                       （12:xx→36:xx、0:00-11:59→24:xx-35:xx、13:00以降はそのまま）*/
+                    if(h<13)h+=24;
                     setNF("taisha",`${h}:${String(min).padStart(2,'0')}`);
                   }} style={{
                     padding:"0 12px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",
@@ -1870,7 +1869,7 @@ function App(){
 
         {/* 日付 */}
         <div style={S.card}>
-          <label style={S.lbl}>日付（自動：16時未満は前日扱い）</label>
+          <label style={S.lbl}>日付（自動：13時未満は前日扱い）</label>
           <input value={formDate} onChange={e=>setFormDate(e.target.value)} placeholder="YYYY/MM/DD" style={S.inp}/>
         </div>
 
