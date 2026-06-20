@@ -355,6 +355,21 @@ const WARD_GROUPS = [
 const {useState,useEffect,useMemo,useCallback,useRef} = React;
 const pad2 = n => String(n).padStart(2,"0");
 
+/* 高速代入力欄：親の再レンダリングで再マウントされIMEが消える問題を防ぐため
+   トップレベルでmemo化し、ローカルstateで入力を保持、blurで親へ反映 */
+const KosoukuInput = React.memo(function KosoukuInput({initial,onCommit}){
+  const [v,setV]=useState(initial||"");
+  return (
+    <input type="tel" inputMode="numeric" value={v}
+      onChange={e=>setV(e.target.value.replace(/[^0-9]/g,""))}
+      onBlur={()=>onCommit(v)}
+      placeholder="0"
+      style={{width:110,fontFamily:"var(--mono)",textAlign:"right",padding:"6px 8px",fontSize:16,
+              background:"var(--bg)",border:"0.5px solid var(--bdr)",borderRadius:"var(--r)",color:"var(--txt)"}}
+    />
+  );
+});
+
 /* ── 時刻・日付（13時シフト対応：I番13時/J番16時を13:00〜36:59でくくる）── */
 function getShiftNow(){
   const d=new Date(), h=d.getHours();
@@ -1316,11 +1331,7 @@ function App(){
                   <span style={{fontSize:13,color:"var(--txt2)"}}>
                     売上 ¥{grouped.cash.total.toLocaleString()} +
                   </span>
-                  <input type="tel" defaultValue={kosouku}
-                    onBlur={e=>setKosouku(e.target.value)}
-                    placeholder="0"
-                    style={{...S.inp,width:110,fontFamily:"var(--mono)",textAlign:"right",padding:"6px 8px",fontSize:16}}
-                  />
+                  <KosoukuInput initial={kosouku} onCommit={setKosouku} />
                   <span style={{fontSize:13,color:"var(--txt2)"}}>円</span>
                 </div>
               </div>
