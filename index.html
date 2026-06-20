@@ -723,6 +723,12 @@ function App(){
   const [kotei,setKotei]=useState("N");
   const [yuusen,setYuusen]=useState(false);
   const [easternName,setEasternName]=useState("");
+  /* 今日のシフトで一時保存した車種のみ有効。別シフト/未設定はnull→従来通り全選択肢 */
+  const activeTaxi=(shukkinForm&&shukkinForm.taxiSetDate===getShiftDate())?shukkinForm.taxi:null;
+  /* 車種別の選択肢。activeTaxiがnullなら全選択肢（従来動作） */
+  const accOpts =activeTaxi==="PRE"?["プレタク"]:activeTaxi==="JAP"?["専用","通常"]:ACCOUNT_OPTS;
+  const statOpts=activeTaxi==="PRE"?["GO"]:activeTaxi==="JAP"?["GO","流し","スマ配"]:STATUS_OPTS;
+  const sankyuOpts=activeTaxi==="PRE"?["プレタク","プレタクP"]:activeTaxi==="JAP"?["通常","サンキュー"]:SANKYU_OPTS;
   const [memo,setMemo]=useState("");
   const [custType,setCustType]=useState([]); /* 客種別: array of flags */
 
@@ -871,8 +877,14 @@ function App(){
     setFdWard(t?t.dWard:""); setFdArea(t?t.dArea:"");
     setFdLat(t?t.dLat:null); setFdLng(t?t.dLng:null);
     setFare(t?String(t.fare):"");
-    setPay(t?t.pay:"GO Pay"); setAcc(t?t.acc:"専用");
-    setStat(t?t.stat:"GO"); setSankyu(t?t.sankyu:"通常");
+    /* 新規作成時は車種に応じた初期値（PRE:プレタク系 / それ以外:従来）。編集時は保存値 */
+    if(t){
+      setPay(t.pay); setAcc(t.acc); setStat(t.stat); setSankyu(t.sankyu);
+    }else if(activeTaxi==="PRE"){
+      setPay("GO Pay"); setAcc("プレタク"); setStat("GO"); setSankyu("プレタク");
+    }else{
+      setPay("GO Pay"); setAcc("専用"); setStat("GO"); setSankyu("通常");
+    }
     setKotei(t?t.kotei:"N"); setYuusen(t?t.yuusen:false);
     setEasternName(t?t.easternName||"":"");
     setMemo(t?t.memo||"":"");
@@ -1383,7 +1395,7 @@ function App(){
     const saveTemp=()=>{
       const d={shukkin:nippouForm.shukkin,musen:nippouForm.musen,taxi:nippouForm.taxi,
                kurotaku:nippouForm.kurotaku,deban:nippouForm.deban,rank01:nippouForm.rank01,
-               rank02:nippouForm.rank02};
+               rank02:nippouForm.rank02,taxiSetDate:getShiftDate()};
       setShukkinForm(s=>({...s,...d}));
       try{localStorage.setItem(NIPPOU_START_KEY,JSON.stringify({...shukkinForm,...d}));}catch{}
       alert("出勤情報を一時保存しました");
@@ -1951,14 +1963,14 @@ function App(){
 
         <div style={S.card}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-            <div><label style={S.lbl}>アカウント</label><Chip opts={ACCOUNT_OPTS} val={acc} onC={setAcc}/></div>
-            <div><label style={S.lbl}>ステータス</label><Chip opts={STATUS_OPTS} val={stat} onC={setStat}/></div>
+            <div><label style={S.lbl}>アカウント</label><Chip opts={accOpts} val={acc} onC={setAcc}/></div>
+            <div><label style={S.lbl}>ステータス</label><Chip opts={statOpts} val={stat} onC={setStat}/></div>
           </div>
         </div>
 
         <div style={S.card}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-            <div><label style={S.lbl}>サンキュー</label><Chip opts={SANKYU_OPTS} val={sankyu} onC={setSankyu}/></div>
+            <div><label style={S.lbl}>サンキュー</label><Chip opts={sankyuOpts} val={sankyu} onC={setSankyu}/></div>
             <div>
               <label style={S.lbl}>固定（固定客）</label>
               <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
