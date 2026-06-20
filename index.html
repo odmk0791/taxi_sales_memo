@@ -739,6 +739,7 @@ function App(){
   const [kLat,setKLat]=useState(null); const [kLng,setKLng]=useState(null);
   const [kFare,setKFare]=useState("500");
   const [kMemo,setKMemo]=useState("");
+  const [kCapturing,setKCapturing]=useState(false);
 
   /* ── 住所ピッカー ── */
   const [pickerFor,setPickerFor]=useState(null); // "p"|"d"|"k"
@@ -1097,6 +1098,18 @@ function App(){
       if(nearest){setFdWard(nearest.ward);setFdArea(nearest.area);setFdLat(lat);setFdLng(lng);}
     }catch{}
     finally{setFdCapturing(false);}
+  };
+
+  /* ── 空転時刻・現在地を一括取得（乗車降車と同構造）── */
+  const captureKuuten=async()=>{
+    setKTime(getShiftNow());
+    setKCapturing(true);
+    try{
+      const{lat,lng}=await getGPS();
+      const nearest=findNearest(lat,lng,locList.filter(l=>l.lat));
+      if(nearest){setKWard(nearest.ward);setKArea(nearest.area);setKLat(lat);setKLng(lng);}
+    }catch{}
+    finally{setKCapturing(false);}
   };
 
   /* ── シフトメモ自動保存 ── */
@@ -1851,6 +1864,25 @@ function App(){
             </div>
           </div>
         )}
+
+        {/* ⚡ 空転：時刻＋場所ワンタップ取得（その場で押せない時は下で後入力）*/}
+        <button onClick={captureKuuten} disabled={kCapturing} style={{
+          width:"100%",padding:"14px 8px",marginBottom:8,
+          background:kCapturing?"var(--bg2)":(kTime&&kWard)?"var(--ok-bg)":"var(--err-bg)",
+          border:`1.5px solid ${kCapturing?"var(--bdr)":(kTime&&kWard)?"var(--ok-bd)":"var(--err-bd)"}`,
+          borderRadius:"var(--rl)",cursor:kCapturing?"default":"pointer",
+          color:kCapturing?"var(--txt3)":(kTime&&kWard)?"var(--ok)":"var(--err)",
+          display:"flex",flexDirection:"column",alignItems:"center",gap:5,
+        }}>
+          <div style={{display:"flex",alignItems:"center",gap:5,fontSize:15,fontWeight:600}}>
+            <i className={`ti ${kCapturing?"ti-loader-2":"ti-map-pin-bolt"}`}
+               style={{fontSize:18,animation:kCapturing?"spin 1s linear infinite":""}}/>
+            空転発生（時刻＋現在地）
+          </div>
+          <div style={{fontSize:11,textAlign:"center",lineHeight:1.4}}>
+            {kCapturing?"取得中…":(kTime&&kWard)?<>{kTime}<br/>{kWard}{kArea}</>:"タップして取得"}
+          </div>
+        </button>
 
         <div style={S.card}>
           <label style={S.lbl}>空転時刻</label>
