@@ -1638,11 +1638,11 @@ function App(){
           style={S.inp}/>
       </div>
 
-      {/* 降車地・空転場所のみ：直接テキスト入力 */}
-      {(pickerFor==="d"||pickerFor==="k")&&(
+      {/* DB外の場所を直接入力（乗車地・降車地・空転場所すべてで利用可）*/}
+      {(pickerFor==="p"||pickerFor==="d"||pickerFor==="k")&&(
         <div style={{padding:"10px 12px",background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)"}}>
           <label style={{fontSize:11,color:"var(--txt3)",display:"block",marginBottom:4}}>
-            DB外の場所を直接入力（千葉市・西東京市など）
+            区外・DB外の場所を直接入力（例：川崎市幸区戸手・西東京市田無町）
           </label>
           <div style={{display:"flex",gap:8}}>
             <input value={areaQ} onChange={e=>setAreaQ(e.target.value)}
