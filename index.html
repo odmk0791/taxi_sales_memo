@@ -1196,6 +1196,31 @@ function App(){
   };
 
   const saveNippou=async()=>{
+    const f=nippouForm;
+    const v=x=>(x===undefined||x===null||x==="")?"—":x;
+    const taxiLbl=f.taxi==="JAP"?"JPN TAXI":(f.taxi==="PRE"?"プレタク(Alfa/Alphard)":v(f.taxi));
+    const msg=
+      "この内容で送信しますか？\n"+
+      "──────────────\n"+
+      "日付　　："+v(f.date)+(f.dow?"（"+f.dow+"）":"")+"\n"+
+      "出勤時刻："+v(f.shukkin)+"\n"+
+      "退社時刻："+v(f.taisha)+"\n"+
+      "出番　　："+v(f.deban)+"\n"+
+      "TAXI種別："+taxiLbl+"\n"+
+      "黒タク区分："+v(f.kurotaku)+"\n"+
+      "無線番号："+v(f.musen)+"\n"+
+      "RANK01　："+v(f.rank01)+"\n"+
+      "RANK02　："+v(f.rank02)+"\n"+
+      "──────────────\n"+
+      "納金額　："+v(f.nokin)+"\n"+
+      "営収　　："+v(f.eishu)+"\n"+
+      "回数　　："+v(f.kaisu)+"\n"+
+      "ハンドル："+v(f.handle)+"\n"+
+      "休憩　　："+v(f.kyukei)+"\n"+
+      "勤務　　："+v(f.kinmu)+"\n"+
+      "全走行　："+v(f.zensokou)+"\n"+
+      "実車走　："+v(f.jissha);
+    if(!confirm(msg))return;
     setNippouSending(true);
     const ok=await submitNippouToForm(nippouForm);
     setNippouSending(false);
@@ -2227,15 +2252,12 @@ function App(){
           </div>
         )}
 
-        {/* ③ 日報ボタン：常時表示 / ④ 15:30以降のみ有効 */}
+        {/* ③ 日報ボタン：常時表示（時刻ロック撤去） */}
         {(()=>{
-          const t=getShiftNow().split(":");
-          const mins=parseInt(t[0])*60+parseInt(t[1]||0);
-          const ready=mins>=15*60+30; /* 15:30以降 */
+          const ready=true; /* いつでも開ける */
           return(
             <div style={{...S.card,marginBottom:10}}>
               <button onClick={()=>{
-                if(!ready){alert("日報入力は15:30以降に使用できます");return;}
                 const saved=(()=>{try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null");}catch{return null;}})();
                 const r2=shukkinForm.rank02||"";
                 /* 乗車記録があればその日付を使う（12時以降も前シフトの日付が正しく入る）*/
@@ -2262,7 +2284,6 @@ function App(){
               }}>
                 <i className="ti ti-report" style={{fontSize:16}}/>
                 出勤・日報入力
-                {!ready&&<span style={{fontSize:11}}> （15:30〜）</span>}
               </button>
             </div>
           );
