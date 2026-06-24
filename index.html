@@ -729,6 +729,8 @@ function App(){
   const accOpts =activeTaxi==="PRE"?["プレタク"]:activeTaxi==="JAP"?["専用","通常"]:ACCOUNT_OPTS;
   const statOpts=activeTaxi==="PRE"?["GO"]:activeTaxi==="JAP"?["GO","流し","スマ配"]:STATUS_OPTS;
   const sankyuOpts=activeTaxi==="PRE"?["プレタク","プレタクP"]:activeTaxi==="JAP"?["通常","サンキュー"]:SANKYU_OPTS;
+  /* 支払方法：PREはGO Payのみ。JAP/未設定は全種類 */
+  const payOpts=activeTaxi==="PRE"?["GO Pay"]:PAYMENT_OPTS;
   const [memo,setMemo]=useState("");
   const [custType,setCustType]=useState([]); /* 客種別: array of flags */
 
@@ -883,6 +885,9 @@ function App(){
       setPay(t.pay); setAcc(t.acc); setStat(t.stat); setSankyu(t.sankyu);
     }else if(activeTaxi==="PRE"){
       setPay("GO Pay"); setAcc("プレタク"); setStat("GO"); setSankyu("プレタク");
+    }else if(activeTaxi==="JAP"){
+      /* ジャパタクは支払方法を強制選択（選びミス防止）→デフォルト未選択 */
+      setPay(""); setAcc("専用"); setStat("GO"); setSankyu("通常");
     }else{
       setPay("GO Pay"); setAcc("専用"); setStat("GO"); setSankyu("通常");
     }
@@ -900,6 +905,7 @@ function App(){
   /* ── 保存 ── */
   const saveTrip=async()=>{
     if(!fare||!fp||!fd||!fpWard||!fdWard)return;
+    if(!pay){alert("支払方法を選択してください");return;}
     const isEdit=!!editId;
     const origTrip=isEdit?trips.find(t=>t.id===editId):null;
     const origSynced=origTrip?.synced||false;
@@ -1979,8 +1985,8 @@ function App(){
         </div>
 
         <div style={S.card}>
-          <label style={S.lbl}>支払</label>
-          <Chip opts={PAYMENT_OPTS} val={pay} onC={setPay} clrMap={PAY_CLR}/>
+          <label style={S.lbl}>支払{!pay&&<span style={{color:"var(--err)",marginLeft:6,fontWeight:600}}>※選択してください</span>}</label>
+          <Chip opts={payOpts} val={pay} onC={setPay} clrMap={PAY_CLR}/>
           {(pay==="イースタン"||pay==="その他")&&(
             <div style={{marginTop:10}}>
               <label style={{...S.lbl,color:"var(--warn)"}}>
