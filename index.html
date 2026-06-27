@@ -1257,15 +1257,34 @@ function App(){
 
   const total=trips.reduce((s,t)=>s+t.fare,0);
 
-  /* 12 時間帯別目標 */
-  const BENCHMARKS=[
-    {hour:20,minF:20000,maxF:30000,trips:10},
-    {hour:22,minF:30000,maxF:40000,trips:15},
-    {hour:24,minF:40000,maxF:60000,trips:20},
-    {hour:28,minF:60000,maxF:80000,trips:30},
-    {hour:30,minF:80000,maxF:100000,trips:35},
-    {hour:33,minF:100000,maxF:110000,trips:40},
-  ];
+  /* 12 時間帯別目標（曜日別・8段階／あくまで目安）
+     index: 0=日 1=月 2=火 3=水 4=木 5=金 6=土（JS getDay 準拠）
+     minF=売上目標(下限) maxF=上限(表示用) trips=回数目安 */
+  const BENCHMARKS_BY_DOW={
+    /* 日：最も低い日（19-21時が弱点／深夜に詰める想定） */
+    0:[{hour:20,minF:17000,maxF:24000,trips:8},{hour:22,minF:26000,maxF:35000,trips:12},{hour:24,minF:36000,maxF:48000,trips:17},{hour:26,minF:47000,maxF:60000,trips:23},{hour:28,minF:56000,maxF:72000,trips:27},{hour:30,minF:74000,maxF:92000,trips:32},{hour:32,minF:86000,maxF:104000,trips:36},{hour:34,minF:96000,maxF:115000,trips:38}],
+    /* 月：平日で最も低い。前半弱→23時・2時の粘りで後半勝負（30時以降は火水を一度抜く） */
+    1:[{hour:20,minF:18000,maxF:25000,trips:9},{hour:22,minF:28000,maxF:37000,trips:13},{hour:24,minF:37000,maxF:50000,trips:18},{hour:26,minF:48000,maxF:62000,trips:24},{hour:28,minF:58000,maxF:75000,trips:28},{hour:30,minF:78000,maxF:98000,trips:34},{hour:32,minF:92000,maxF:112000,trips:39},{hour:34,minF:102000,maxF:122000,trips:40}],
+    /* 火：平均（基準） */
+    2:[{hour:20,minF:20000,maxF:28000,trips:10},{hour:22,minF:30000,maxF:40000,trips:15},{hour:24,minF:40000,maxF:54000,trips:20},{hour:26,minF:50000,maxF:65000,trips:25},{hour:28,minF:60000,maxF:78000,trips:30},{hour:30,minF:80000,maxF:100000,trips:35},{hour:32,minF:92000,maxF:112000,trips:39},{hour:34,minF:102000,maxF:122000,trips:40}],
+    /* 水：平均（基準・火と同じ） */
+    3:[{hour:20,minF:20000,maxF:28000,trips:10},{hour:22,minF:30000,maxF:40000,trips:15},{hour:24,minF:40000,maxF:54000,trips:20},{hour:26,minF:50000,maxF:65000,trips:25},{hour:28,minF:60000,maxF:78000,trips:30},{hour:30,minF:80000,maxF:100000,trips:35},{hour:32,minF:92000,maxF:112000,trips:39},{hour:34,minF:102000,maxF:122000,trips:40}],
+    /* 木：プチ金曜日（基準の約1.05〜1.07倍） */
+    4:[{hour:20,minF:21000,maxF:29000,trips:10},{hour:22,minF:32000,maxF:42000,trips:15},{hour:24,minF:43000,maxF:57000,trips:21},{hour:26,minF:54000,maxF:70000,trips:26},{hour:28,minF:65000,maxF:84000,trips:31},{hour:30,minF:86000,maxF:106000,trips:37},{hour:32,minF:98000,maxF:118000,trips:41},{hour:34,minF:108000,maxF:130000,trips:42}],
+    /* 金：最も高い。目安は高め（戦略切替＝ロング優先は現場判断） */
+    5:[{hour:20,minF:22000,maxF:30000,trips:11},{hour:22,minF:34000,maxF:45000,trips:16},{hour:24,minF:46000,maxF:60000,trips:22},{hour:26,minF:58000,maxF:74000,trips:28},{hour:28,minF:70000,maxF:90000,trips:33},{hour:30,minF:90000,maxF:110000,trips:38},{hour:32,minF:102000,maxF:122000,trips:42},{hour:34,minF:114000,maxF:135000,trips:44}],
+    /* 土：休日版プチ金。序中盤は木と同等、終盤(32-34)で伸ばす */
+    6:[{hour:20,minF:21000,maxF:29000,trips:10},{hour:22,minF:32000,maxF:42000,trips:15},{hour:24,minF:43000,maxF:57000,trips:21},{hour:26,minF:55000,maxF:71000,trips:26},{hour:28,minF:66000,maxF:85000,trips:31},{hour:30,minF:84000,maxF:104000,trips:36},{hour:32,minF:98000,maxF:118000,trips:40},{hour:34,minF:110000,maxF:132000,trips:42}],
+  };
+  /* シフト日の曜日でテーブルを選ぶ（乗車記録があればその日付を優先）
+     ※ローカル時刻コンストラクタで曜日算出（new Date('YYYY-MM-DD')のUTCずれ回避）*/
+  const getBenchmarks=()=>{
+    const ds=(trips.length>0&&trips[0].date)?trips[0].date:getShiftDate();
+    const m=ds&&ds.match(/(\d+)\/(\d+)\/(\d+)/);
+    const dow=m?new Date(+m[1],+m[2]-1,+m[3]).getDay():2; /* 不明時は火(基準) */
+    return BENCHMARKS_BY_DOW[dow]||BENCHMARKS_BY_DOW[2];
+  };
+  const BENCHMARKS=getBenchmarks();
   const kuutenTotal=kuutens.reduce((s,k)=>s+k.fare,0);
   const unsyncedCount=FORM_ID?trips.filter(t=>!t.synced).length:0;
   const [showFixOnly,setShowFixOnly]=useState(false);
@@ -2211,7 +2230,7 @@ function App(){
               padding:"8px 12px",
             }}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:11,color:"var(--txt3)"}}>〜{bm.hour}時目標</span>
+                <span style={{fontSize:11,color:"var(--txt3)"}}>{(()=>{const ds=(trips.length>0&&trips[0].date)?trips[0].date:getShiftDate();const dw=getDow(ds);return dw?dw+"曜 ":"";})()}〜{bm.hour}時目標</span>
                 <span style={{fontSize:11,fontWeight:500,color:ok?"var(--ok)":diff>10000?"var(--err)":"var(--warn)"}}>
                   {ok?"✓ 目標クリア":okTrips?"回数OK（売上"+diff.toLocaleString()+"円不足）":"¥"+diff.toLocaleString()+"円 / "+Math.max(0,bm.trips-trips.length)+"件 不足"}
                 </span>
