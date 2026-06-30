@@ -785,6 +785,8 @@ function App(){
   useEffect(()=>{try{localStorage.setItem(STORE_KEY,JSON.stringify(trips));}catch{}},[trips]);
   useEffect(()=>{try{localStorage.setItem(KUUTEN_KEY,JSON.stringify(kuutens));}catch{}},[kuutens]);
   useEffect(()=>{try{localStorage.setItem(BREAK_STORE_KEY,JSON.stringify(breaks));}catch{}},[breaks]);
+  /* シフトメモの自動保存（空なら削除）。これが無く保存が効いていなかった */
+  useEffect(()=>{try{if(shiftMemo)localStorage.setItem("eimu_shift_memo",shiftMemo);else localStorage.removeItem("eimu_shift_memo");}catch{}},[shiftMemo]);
 
   /* フォーム下書き自動保存（フォーム画面中に何か入力があれば保存）*/
   useEffect(()=>{
