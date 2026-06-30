@@ -370,6 +370,34 @@ const KosoukuInput = React.memo(function KosoukuInput({initial,onCommit}){
   );
 });
 
+/* 納金集計の各セクション：コンポーネント本体の外でmemo化。
+   本体内に定義すると毎レンダリングで関数が再生成され、配下のKosoukuInputが
+   再マウントされてIMEが閉じるため、必ずトップレベルに置く（Sはトップレベル定数） */
+const Section = React.memo(function Section({num,label,sub,amount,count,color,items,extra}){
+  return (
+    <div style={{...S.card,marginBottom:8,borderLeft:`3px solid ${color}`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div style={{flex:1}}>
+          <p style={{fontSize:11,color:"var(--txt3)",margin:"0 0 2px"}}>
+            <span style={{fontWeight:600,color}}>{num}</span>　{label}
+            {sub&&<span style={{marginLeft:6}}>{sub}</span>}
+          </p>
+          {count!=null&&<p style={{fontSize:12,color:"var(--txt3)",margin:"0 0 4px"}}>{count}件</p>}
+          {items&&Object.keys(items).length>1&&Object.entries(items).map(([p,{total:t,count:c}])=>(
+            <p key={p} style={{fontSize:12,color:"var(--txt3)",margin:"1px 0"}}>
+              {p}　{c}件　¥{t.toLocaleString()}
+            </p>
+          ))}
+          {extra}
+        </div>
+        <span style={{fontSize:24,fontWeight:500,fontFamily:"var(--mono)",color,flexShrink:0,marginLeft:12}}>
+          {amount<0?"-":""} ¥{Math.abs(amount).toLocaleString()}
+        </span>
+      </div>
+    </div>
+  );
+});
+
 /* ── 時刻・日付（13時シフト対応：I番13時/J番16時を13:00〜36:59でくくる）── */
 function getShiftNow(){
   const d=new Date(), h=d.getHours();
@@ -1336,30 +1364,6 @@ function App(){
     const kosokuAmt=parseInt(kosouku)||0;
     const cashTotal=grouped.cash.total+kosokuAmt;
     const grandTotal=cashTotal+grouped.mishu.total+grouped.card.total+kuutenTotal;
-
-    const Section=({num,label,sub,amount,count,color,items,extra})=>(
-      <div style={{...S.card,marginBottom:8,borderLeft:`3px solid ${color}`}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-          <div style={{flex:1}}>
-            <p style={{fontSize:11,color:"var(--txt3)",margin:"0 0 2px"}}>
-              <span style={{fontWeight:600,color}}>{num}</span>　{label}
-              {sub&&<span style={{marginLeft:6}}>{sub}</span>}
-            </p>
-            {count!=null&&<p style={{fontSize:12,color:"var(--txt3)",margin:"0 0 4px"}}>{count}件</p>}
-            {/* 内訳 */}
-            {items&&Object.keys(items).length>1&&Object.entries(items).map(([p,{total:t,count:c}])=>(
-              <p key={p} style={{fontSize:12,color:"var(--txt3)",margin:"1px 0"}}>
-                {p}　{c}件　¥{t.toLocaleString()}
-              </p>
-            ))}
-            {extra}
-          </div>
-          <span style={{fontSize:24,fontWeight:500,fontFamily:"var(--mono)",color,flexShrink:0,marginLeft:12}}>
-            {amount<0?"-":""} ¥{Math.abs(amount).toLocaleString()}
-          </span>
-        </div>
-      </div>
-    );
 
     const copyNokin=()=>{
       const date=trips[0]?.date||getShiftDate();
