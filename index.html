@@ -358,11 +358,14 @@ const pad2 = n => String(n).padStart(2,"0");
 /* 高速代入力欄：親の再レンダリングで再マウントされIMEが消える問題を防ぐため
    トップレベルでmemo化し、ローカルstateで入力を保持、blurで親へ反映 */
 const KosoukuInput = React.memo(function KosoukuInput({initial,onCommit}){
-  const [v,setV]=useState(initial||"");
+  /* 非制御入力：入力中はReactがvalueを書き戻さないためIMEセッションが切れない。
+     確定(onBlur)時のみ親stateへコミット。数字専用欄なので非制御で表示問題なし。 */
+  const ref=React.useRef(null);
+  const sanitize=el=>{const c=el.value.replace(/[^0-9]/g,"");if(el.value!==c)el.value=c;};
   return (
-    <input type="tel" inputMode="numeric" value={v}
-      onChange={e=>setV(e.target.value.replace(/[^0-9]/g,""))}
-      onBlur={()=>onCommit(v)}
+    <input ref={ref} type="tel" inputMode="numeric" defaultValue={initial||""}
+      onInput={e=>sanitize(e.target)}
+      onBlur={e=>onCommit(e.target.value)}
       placeholder="0"
       style={{width:110,fontFamily:"var(--mono)",textAlign:"right",padding:"6px 8px",fontSize:16,
               background:"var(--bg)",border:"0.5px solid var(--bdr)",borderRadius:"var(--r)",color:"var(--txt)"}}
@@ -1410,7 +1413,7 @@ function App(){
                   <span style={{fontSize:13,color:"var(--txt2)"}}>
                     売上 ¥{grouped.cash.total.toLocaleString()} +
                   </span>
-                  <KosoukuInput initial={kosouku} onCommit={setKosouku} />
+                  <KosoukuInput key="kosouku-input" initial={kosouku} onCommit={setKosouku} />
                   <span style={{fontSize:13,color:"var(--txt2)"}}>円</span>
                 </div>
               </div>
