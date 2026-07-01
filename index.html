@@ -797,11 +797,11 @@ function App(){
     if(!fp&&!fare&&!fpWard)return; /* 空フォームは保存しない */
     const d={editId,formDate,fp,fd,fpWard,fpArea,fpLat,fpLng,
              fdWard,fdArea,fdLat,fdLng,fare,pay,acc,stat,
-             sankyu,kotei,yuusen,easternName,koteiMemo,memo};
+             sankyu,kotei,yuusen,easternName,koteiMemo,custType,memo};
     localStorage.setItem("eimu_form_draft",JSON.stringify(d));
     setHasDraft(true);
   },[screen,fp,fare,fpWard,fpArea,fdWard,fdArea,fd,formDate,
-     fpLat,fpLng,fdLat,fdLng,pay,acc,stat,sankyu,kotei,yuusen,easternName,koteiMemo,memo,editId]);
+     fpLat,fpLng,fdLat,fdLng,pay,acc,stat,sankyu,kotei,yuusen,easternName,koteiMemo,custType,memo,editId]);
 
   /* 休憩タイマー */
   useEffect(()=>{
@@ -1106,6 +1106,7 @@ function App(){
       setSankyu(d.sankyu||"通常"); setKotei(d.kotei||"N");
       setYuusen(d.yuusen||false);
       setEasternName(d.easternName||""); setKoteiMemo(d.koteiMemo||""); setMemo(d.memo||"");
+      setCustType(Array.isArray(d.custType)?d.custType:[]);
       setScreen("form");
     }catch{}
   };
