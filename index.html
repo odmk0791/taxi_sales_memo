@@ -2069,7 +2069,7 @@ function App(){
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
             <div><label style={S.lbl}>サンキュー</label><Chip opts={sankyuOpts} val={sankyu} onC={setSankyu}/></div>
             <div>
-              <label style={S.lbl}>固定（固定客）</label>
+              <label style={S.lbl}>固定客</label>
               <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
                 {KOTEI_OPTS.map(o=>(
                   <button key={o} onClick={()=>setKotei(o)} style={{
@@ -2078,7 +2078,7 @@ function App(){
                     background:kotei===o?"var(--bg2)":"var(--bg)",
                     color:kotei===o?"var(--info)":"var(--txt2)",fontWeight:kotei===o?500:400,
                   }}>
-                    {o}<span style={{fontSize:10,marginLeft:3,opacity:.7}}>{KOTEI_LABELS[o]}</span>
+                    {o}
                   </button>
                 ))}
               </div>
