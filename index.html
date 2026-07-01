@@ -72,6 +72,7 @@ const FIELDS = {
   custType:      "entry.833321972",
   yuusen:        "entry.2015749027",
   easternName:   "entry.1543643489",
+  koteiMemo:     "entry.406004188",  /* 固定客メモ（固定客の直後の質問枠） */
   memo:          "entry.750070485",
 };
 
@@ -504,6 +505,7 @@ async function submitToForm(trip){
     [FIELDS.custType]:Array.isArray(trip.custType)?trip.custType.join("/")||"":trip.custType||"",
     [FIELDS.yuusen]:trip.yuusen?"優":"",
     [FIELDS.easternName]:trip.easternName||"",
+    [FIELDS.koteiMemo]:trip.koteiMemo||"",
     [FIELDS.memo]:trip.memo||"",
   };
   Object.entries(map).forEach(([k,v])=>body.append(k,v));
@@ -754,6 +756,7 @@ function App(){
   const [kotei,setKotei]=useState("N");
   const [yuusen,setYuusen]=useState(false);
   const [easternName,setEasternName]=useState("");
+  const [koteiMemo,setKoteiMemo]=useState("");
   /* 今日のシフトで一時保存した車種のみ有効。別シフト/未設定はnull→従来通り全選択肢 */
   const activeTaxi=(shukkinForm&&shukkinForm.taxiSetDate===getShiftDate())?shukkinForm.taxi:null;
   /* 車種別の選択肢。activeTaxiがnullなら全選択肢（従来動作） */
@@ -794,11 +797,11 @@ function App(){
     if(!fp&&!fare&&!fpWard)return; /* 空フォームは保存しない */
     const d={editId,formDate,fp,fd,fpWard,fpArea,fpLat,fpLng,
              fdWard,fdArea,fdLat,fdLng,fare,pay,acc,stat,
-             sankyu,kotei,yuusen,easternName,memo};
+             sankyu,kotei,yuusen,easternName,koteiMemo,memo};
     localStorage.setItem("eimu_form_draft",JSON.stringify(d));
     setHasDraft(true);
   },[screen,fp,fare,fpWard,fpArea,fdWard,fdArea,fd,formDate,
-     fpLat,fpLng,fdLat,fdLng,pay,acc,stat,sankyu,kotei,yuusen,easternName,memo,editId]);
+     fpLat,fpLng,fdLat,fdLng,pay,acc,stat,sankyu,kotei,yuusen,easternName,koteiMemo,memo,editId]);
 
   /* 休憩タイマー */
   useEffect(()=>{
@@ -926,6 +929,7 @@ function App(){
     }
     setKotei(t?t.kotei:"N"); setYuusen(t?t.yuusen:false);
     setEasternName(t?t.easternName||"":"");
+    setKoteiMemo(t?t.koteiMemo||"":"");
     setMemo(t?t.memo||"":"");
     setCustType(t?( Array.isArray(t.custType)?t.custType:(t.custType&&t.custType!=="日本人"?[t.custType]:[]) ):[]);
   };
@@ -950,6 +954,7 @@ function App(){
       fare:parseInt(fare.replace(/[^0-9]/g,""))||0,
       pay, acc, stat, sankyu, kotei, yuusen,
       easternName:pay==="イースタン"?easternName:"",
+      koteiMemo:kotei!=="N"?koteiMemo:"",
       memo, custType, synced:origSynced,
       needsFix:origTrip?.needsFix||false,
       fixNote:origTrip?.fixNote||"",
@@ -1100,7 +1105,7 @@ function App(){
       setAcc(d.acc||"専用"); setStat(d.stat||"GO");
       setSankyu(d.sankyu||"通常"); setKotei(d.kotei||"N");
       setYuusen(d.yuusen||false);
-      setEasternName(d.easternName||""); setMemo(d.memo||"");
+      setEasternName(d.easternName||""); setKoteiMemo(d.koteiMemo||""); setMemo(d.memo||"");
       setScreen("form");
     }catch{}
   };
@@ -1267,13 +1272,13 @@ function App(){
 
   /* ── CSV エクスポート ── */
   const doExport=()=>{
-    const h="日付,曜日,乗車時間,降車時間,実車時間,乗車地：市区,乗車地：地名,乗車地：緯度,乗車地：経度,降車地：市区,降車地：地名,降車地：緯度,降車地：経度,料金,アカウント,ステータス,支払,サンキュー,固定客,優先パス,イースタン氏名,メモ";
+    const h="日付,曜日,乗車時間,降車時間,実車時間,乗車地：市区,乗車地：地名,乗車地：緯度,乗車地：経度,降車地：市区,降車地：地名,降車地：緯度,降車地：経度,料金,アカウント,ステータス,支払,サンキュー,固定客,優先パス,イースタン氏名,固定客メモ,メモ";
     const rows=trips.map(t=>[
       t.date,t.dow,t.pTime,t.dTime,t.jitsu,
       t.pWard,t.pArea,t.pLat||"",t.pLng||"",
       t.dWard,t.dArea,t.dLat||"",t.dLng||"",
       fmtFare(t.fare),t.acc,t.stat,t.pay,t.sankyu,t.kotei,
-      t.yuusen?"優":"",t.easternName||"",t.memo||""
+      t.yuusen?"優":"",t.easternName||"",t.koteiMemo||"",t.memo||""
     ].join(",")).join("\n");
     let out=h+"\n"+rows;
     if(kuutens.length>0){
@@ -2078,6 +2083,16 @@ function App(){
               </div>
             </div>
           </div>
+          {kotei!=="N"&&(
+            <div style={{marginTop:12}}>
+              <label style={{...S.lbl,color:"var(--info)"}}>
+                固定客メモ（名前・宛先・ひとこと）
+              </label>
+              <input value={koteiMemo} onChange={e=>setKoteiMemo(e.target.value)}
+                placeholder="例：伊藤忠のハラダさん／朝 田園調布→南青山"
+                style={S.inp}/>
+            </div>
+          )}
         </div>
 
         <div style={S.card}>
