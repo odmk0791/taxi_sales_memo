@@ -1528,19 +1528,19 @@ function App(){
               </div>
               <div>
                 <label style={S.lbl}>無線番号</label>
-                <input type="tel" value={nippouForm.musen}
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" value={nippouForm.musen}
                   onChange={e=>setNF("musen",e.target.value)}
                   style={{...S.inp,fontFamily:"var(--mono)"}}/>
               </div>
               <div>
                 <label style={S.lbl}>RANK01</label>
-                <input type="tel" value={nippouForm.rank01}
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" value={nippouForm.rank01}
                   onChange={e=>setNF("rank01",e.target.value)}
                   style={S.inp}/>
               </div>
               <div>
                 <label style={S.lbl}>RANK02（28時頃）</label>
-                <input type="tel" value={nippouForm.rank02}
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" value={nippouForm.rank02}
                   onChange={e=>setNF("rank02",e.target.value)}
                   style={S.inp}/>
               </div>
@@ -1600,6 +1600,7 @@ function App(){
                 <div key={f} style={span?{gridColumn:"1 / -1"}:{}}>
                   <label style={{fontSize:10,color:"var(--txt3)",display:"block",marginBottom:2}}>{l}</label>
                   <input type={mode} inputMode={mode==="tel"?"numeric":"text"}
+                    {...(mode==="tel"?{pattern:"[0-9]*"}:{})}
                     value={nippouForm[f]}
                     onChange={e=>setNF(f, fmt==="time"?(f==="kyukei"?fmtKyukeiInput(e.target.value):fmtTimeInput(e.target.value)):e.target.value)}
                     placeholder={ph||""}
