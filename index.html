@@ -729,6 +729,32 @@ function App(){
   /* シフトメモ */
   const [shiftMemo,setShiftMemo]=useState(()=>localStorage.getItem("eimu_shift_memo")||"");
   const [showMemo,setShowMemo]=useState(false);
+  /* ── 画面スリープ防止（Wake Lock API）──
+     HTTPS必須／iOS16.4以降対応。タブ非表示で自動解除されるため復帰時に再取得。*/
+  const [wakeOn,setWakeOn]=useState(false);
+  const wakeRef=React.useRef(null);
+  const wakeSupported=typeof navigator!=="undefined"&&"wakeLock"in navigator;
+  useEffect(()=>{
+    if(!wakeSupported)return;
+    let cancelled=false;
+    const acquire=async()=>{
+      if(!wakeOn||document.visibilityState!=="visible")return;
+      try{
+        const s=await navigator.wakeLock.request("screen");
+        if(cancelled){try{s.release();}catch{}return;}
+        wakeRef.current=s;
+        s.addEventListener("release",()=>{wakeRef.current=null;});
+      }catch{ if(!cancelled)setWakeOn(false); }
+    };
+    const release=()=>{
+      const s=wakeRef.current; wakeRef.current=null;
+      if(s){try{s.release();}catch{}}
+    };
+    if(wakeOn)acquire(); else release();
+    const onVis=()=>{ if(wakeOn&&document.visibilityState==="visible"&&!wakeRef.current)acquire(); };
+    document.addEventListener("visibilitychange",onVis);
+    return ()=>{ cancelled=true; document.removeEventListener("visibilitychange",onVis); release(); };
+  },[wakeOn,wakeSupported]);
   const [fpCapturing,setFpCapturing]=useState(false); /* 乗車一括取得中 */
   const [fdCapturing,setFdCapturing]=useState(false); /* 降車一括取得中 */
   /* 休憩手動入力用 */
@@ -2187,6 +2213,18 @@ function App(){
           <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>{trips[0]?.date||getShiftDate()}</p>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          {/* 画面スリープ防止トグル（対応端末のみ表示）*/}
+          {wakeSupported&&(
+            <button onClick={()=>setWakeOn(v=>!v)} style={{
+              display:"flex",alignItems:"center",gap:4,padding:"7px 11px",
+              background:wakeOn?"var(--ok-bg)":"var(--bg2)",
+              border:`0.5px solid ${wakeOn?"var(--ok-bd)":"var(--bdr2)"}`,
+              borderRadius:"var(--r)",fontSize:13,cursor:"pointer",
+              color:wakeOn?"var(--ok)":"var(--txt2)",
+            }} title={wakeOn?"画面スリープ防止：ON":"画面スリープ防止：OFF"}>
+              <i className={wakeOn?"ti ti-bulb":"ti ti-bulb-off"}/>{wakeOn?"点灯":"消灯"}
+            </button>
+          )}
           {/* 出勤記録ボタン削除済み - 合計カードの日報ボタンを使用 */}
           {/* シフトメモボタン */}
           <button onClick={()=>setShowMemo(true)} style={{
