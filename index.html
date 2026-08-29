@@ -116,7 +116,7 @@ const NIPPOU_FIELDS={
   kinmu:"entry.1733283815",
 };
 const NIPPOU_START_KEY="eimu_nippou_start"; /* 出勤記録localStorage */
-const SCAN_PROMPT=`あなたは日本のタクシードライバーの営業日報「運転者営業日報（点呼用）」を読み取るAIです。画像から以下の項目を正確に読み取り、JSONのみ返してください。説明不要。\n読み取り項目:\n- 日付: 年月日 例"2026/06/03"\n- 曜日: 漢字1文字 例"水"\n- 納金額: 数字のみ 納金明細欄の「納金額」 例"91650"\n- 営収: 数字のみ「営業収入」 例"80500"\n- 回数: 数字のみ「営業回数」 例"22"\n- ハンドル時間: 時間:分 例"17:36"\n- 休憩時間: 時間:分「全休憩時間」 例"2:40"\n- 全走行距離: 数字のみkm不要 例"312"\n- 実車走行距離: 数字のみkm不要 例"146"\n- 無線番号: 車番/シフト欄の数字 例"2084"\n出力:\n{"日付":"...","曜日":"...","納金額":"...","営収":"...","回数":"...","ハンドル時間":"...","休憩時間":"...","全走行距離":"...","実車走行距離":"...","無線番号":"..."}`;
+
 
 const LOC_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSpOj4QzyarqZtTDM5bld8QDEIzRodRLUwAfF8u42CbgTuGPoKqWrOKtw2Ddrhm0OnONlVnzwc8c1BX/pub?gid=657495537&single=true&output=csv";
 const STORE_KEY  = "eimu_trips_v2";
@@ -706,9 +706,6 @@ function App(){
   const [locHistory,setLocHistory]=useState(()=>{
     try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||"[]");}catch{return[];}
   });
-  /* 日報スキャン */
-  const [nippouScreen,setNippouScreen]=useState("idle"); /* idle|scanning|form */
-  const [nScanError,setNScanError]=useState("");
   const [nippouSending,setNippouSending]=useState(false);
   const [nippouForm,setNippouForm]=useState({
     date:"",dow:"",nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",kinmu:"",
@@ -1206,59 +1203,7 @@ function App(){
     setShowRank02(false);
   };
 
-  /* ── 日報スキャン（Gemini AI読み取り）── */
-  const GEMINI_KEY_STORAGE="eimu_gemini_key";
-  const scanNippou=async(imgData,imgType)=>{
-    /* APIキー確認 */
-    let apiKey=localStorage.getItem(GEMINI_KEY_STORAGE);
-    if(!apiKey){
-      const k=prompt("Google Gemini APIキーを入力してください\n（aistudio.google.comで取得・無料）");
-      if(!k){setNippouScreen("idle");return;}
-      localStorage.setItem(GEMINI_KEY_STORAGE,k.trim());
-      apiKey=k.trim();
-    }
-    setNippouScreen("scanning"); setNScanError("");
-    /* 出勤記録から引き継ぎ */
-    const saved=(()=>{try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null");}catch{return null;}})();
-    if(saved)setNippouForm(f=>({...f,
-      shukkin:saved.shukkin||f.shukkin, musen:saved.musen||f.musen,
-      taxi:saved.taxi||f.taxi, kurotaku:saved.kurotaku||f.kurotaku,
-      deban:saved.deban||f.deban, rank01:saved.rank01||f.rank01,
-      rank02:saved.rank02||f.rank02,
-    }));
-    try{
-      const isPdf=imgType==="application/pdf";
-      const part=isPdf
-        ?{inline_data:{mime_type:"application/pdf",data:imgData}}
-        :{inline_data:{mime_type:imgType,data:imgData}};
-      const res=await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${apiKey}`,
-        {method:"POST",headers:{"Content-Type":"application/json"},
-         body:JSON.stringify({contents:[{parts:[part,{text:SCAN_PROMPT}]}]})}
-      );
-      if(!res.ok){
-        const err=await res.json().catch(()=>({}));
-        if(res.status===400||res.status===401){
-          localStorage.removeItem(GEMINI_KEY_STORAGE);
-          throw new Error("APIキーが無効です。再入力してください。");
-        }
-        throw new Error(`APIエラー(${res.status}): ${err?.error?.message||"不明"}`);
-      }
-      const json=await res.json();
-      const text=(json.candidates?.[0]?.content?.parts||[]).map(p=>p.text||"").join("");
-      const p=JSON.parse(text.replace(/```json|```/g,"").trim());
-      setNippouForm(f=>({...f,
-        date:p["日付"]||"",dow:p["曜日"]||"",nokin:p["納金額"]||"",
-        eishu:p["営収"]||"",kaisu:p["回数"]||"",handle:p["ハンドル時間"]||"",
-        kyukei:p["休憩時間"]||"",zensokou:p["全走行距離"]||"",
-        jissha:p["実車走行距離"]||"",musen:p["無線番号"]||f.musen,
-      }));
-      setNippouScreen("form");
-    }catch(err){
-      setNScanError(err.message||"読み取りに失敗しました。もう一度お試しください。");
-      setNippouScreen("idle");
-    }
-  };
+  /* 日報スキャン機能は廃止（手入力運用に一本化）*/
 
   const saveNippou=async()=>{
     const f=nippouForm;
@@ -2354,7 +2299,7 @@ function App(){
                   taxi:saved?.taxi||"JAP", kurotaku:saved?.kurotaku||"青",
                   deban:saved?.deban||"J", rank01:saved?.rank01||"",
                   rank02:r2, taisha:"",
-                  nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",kinmu:"",zensokou:"",jissha:"",
+                  nokin:"",eishu:"",kaisu:String(trips.length),handle:"",kyukei:"",kinmu:"",zensokou:"",jissha:"",
                 }));
                 setScreen("nippou_scan");
               }} style={{
