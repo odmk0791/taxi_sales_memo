@@ -1,0 +1,2622 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>営業メモ B勤</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.10/babel.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#ffffff; --bg2:#f4f3ef; --bg3:#eae9e3;
+      --txt:#1a1a18; --txt2:#5c5c57; --txt3:#9c9a92;
+      --bdr:rgba(0,0,0,0.13); --bdr2:rgba(0,0,0,0.25);
+      --ok:#1d6b44; --ok-bg:#eaf3de; --ok-bd:rgba(29,107,68,.3);
+      --info:#185fa5; --info-bg:#e6f1fb; --info-bd:rgba(24,95,165,.3);
+      --warn:#ba7517; --warn-bg:#faeeda; --warn-bd:rgba(186,117,23,.3);
+      --err:#a32d2d; --err-bg:#fcebeb; --err-bd:rgba(163,45,45,.3);
+      --sans:"Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;
+      --mono:"SF Mono","Courier New",monospace;
+      --r:8px; --rl:12px;
+    }
+    @media (prefers-color-scheme:dark){
+      :root{
+        --bg:#1c1c1a; --bg2:#252523; --bg3:#141412;
+        --txt:#e8e6de; --txt2:#9c9a92; --txt3:#6c6a62;
+        --bdr:rgba(255,255,255,.10); --bdr2:rgba(255,255,255,.20);
+        --ok:#5dcaa5; --ok-bg:#04342c; --ok-bd:rgba(93,202,165,.3);
+        --info:#85b7eb; --info-bg:#042c53; --info-bd:rgba(133,183,235,.3);
+        --warn:#ef9f27; --warn-bg:#412402; --warn-bd:rgba(239,159,39,.3);
+        --err:#f09595; --err-bg:#501313; --err-bd:rgba(240,149,149,.3);
+      }
+    }
+    html,body,#root{height:100%;}
+    body{background:var(--bg3);font-family:var(--sans);color:var(--txt);-webkit-text-size-adjust:100%;}
+    input,button,select{font-family:var(--sans);font-size:16px;}
+    input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+    button{-webkit-tap-highlight-color:transparent;}
+    textarea{font-family:var(--sans);font-size:15px;resize:vertical;}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+/* =====================================================
+   ★ Googleフォーム設定 ★
+   ===================================================== */
+const FORM_ID = "1FAIpQLScqTvIQaJ-OEJy52fCTMmw3_vd4lgDEHsYS3r1XY3JCmZdh7A";
+const FIELDS = {
+  date:          "entry.1303441950",
+  dow:           "entry.1436016897",
+  pTime:         "entry.914223619",
+  dTime:         "entry.1499035925",
+  jitsu:         "entry.1806788542",
+  pWard:         "entry.913312250",
+  pArea:         "entry.431036022",
+  pLat:          "entry.1239773220",
+  pLng:          "entry.504283522",
+  dWard:         "entry.987071180",
+  dArea:         "entry.295082764",
+  dLat:          "entry.332685219",
+  dLng:          "entry.297272372",
+  fare:          "entry.1114782733",
+  acc:           "entry.1191439471",
+  stat:          "entry.2133648405",
+  pay:           "entry.2056900070",
+  sankyu:        "entry.52331897",
+  kotei:         "entry.506199110",
+  custType:      "entry.833321972",
+  yuusen:        "entry.2015749027",
+  easternName:   "entry.1543643489",
+  koteiMemo:     "entry.406004188",  /* 固定客メモ（固定客の直後の質問枠） */
+  memo:          "entry.750070485",
+};
+
+/* ── 空転フォーム設定 ── */
+const KUUTEN_FORM_ID = "1FAIpQLSfq1CUV2dWQ2GYUm4siEFvSuxXzT2MHPXZQh56KnqT5V_yE7w";
+const KUUTEN_FIELDS = {
+  date:  "entry.1449615682",
+  kType: "entry.858462047",
+  time:  "entry.951478410",
+  ward:  "entry.1339860978",
+  area:  "entry.1293439411",
+  lat:   "entry.350136595",
+  lng:   "entry.1696965668",
+  fare:  "entry.1666064088",
+  memo:  "entry.1272407810",
+};
+
+/* ── 休憩フォーム設定 ── */
+const REST_FORM_ID = "1FAIpQLSfdsbqkEMGWKctQvrzYIkXHldzvxJMrCzD1TAmGX57CUTlfhg";
+const REST_FIELDS = {
+  date:      "entry.323779937",
+  startTime: "entry.1315592223",
+  endTime:   "entry.390004713",
+  minutes:   "entry.2125989415",
+  lat:       "entry.1000420178",
+  lng:       "entry.2110064235",
+  memo:      "entry.472039999",
+};
+const BREAK_STORE_KEY  = "eimu_B_breaks_v1";
+const TARGET_BREAK_MINS = 130; /* 目標休憩時間（最低ライン）*/
+
+/* ── 日報フォーム設定 ── */
+const NIPPOU_FORM_ID="1FAIpQLSdJ2F5AeDKdXnN8GyCsx_gsGWRns1lO7PMZiuiUnoqihVMu5A";
+const NIPPOU_FIELDS={
+  date:"entry.1017854134", dow:"entry.758227427", nokin:"entry.41970535",
+  eishu:"entry.163375778", kaisu:"entry.159114153", handle:"entry.625208270",
+  kyukei:"entry.174204251", zensokou:"entry.450198441", jissha:"entry.966740574",
+  musen:"entry.311036871", shukkin:"entry.1817750255", taisha:"entry.989775496",
+  rank01:"entry.143976913", rank02:"entry.859283838", taxi:"entry.1351674827",
+  kurotaku:"entry.1827094756", deban:"entry.1795800053",
+  kinmu:"entry.1733283815",
+};
+const NIPPOU_START_KEY="eimu_B_nippou_start"; /* 出勤記録localStorage */
+
+
+const LOC_CSV   = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSpOj4QzyarqZtTDM5bld8QDEIzRodRLUwAfF8u42CbgTuGPoKqWrOKtw2Ddrhm0OnONlVnzwc8c1BX/pub?gid=657495537&single=true&output=csv";
+const STORE_KEY  = "eimu_B_trips_v2";
+const KUUTEN_KEY = "eimu_B_kuutens_v1";
+
+const PAYMENT_OPTS = ["GO Pay","現金","クレジット","IC","QRコード","チケット","福祉券","イースタン","商品券","その他"];
+const ACCOUNT_OPTS = ["専用","通常","プレタク"];
+const STATUS_OPTS  = ["GO","流し","スマ配"];
+const SANKYU_OPTS  = ["通常","サンキュー","プレタク","プレタクP"];
+const KOTEI_OPTS   = ["N","L","M","S"];
+const KOTEI_LABELS = {N:"なし",L:"Long",M:"Middle",S:"Short"};
+const DOW_JP = ["日","月","火","水","木","金","土"];
+const PAY_CLR = {"GO Pay":"var(--warn)","現金":"var(--ok)","クレジット":"var(--info)","IC":"var(--info)","QRコード":"var(--warn)"};
+const HISTORY_KEY = "eimu_B_loc_history";
+
+/* ── 東京主要エリア ひらがな読みマップ ── */
+const FURIGANA = {
+  /* 千代田区 */
+  "大手町":"おおてまち","丸の内":"まるのうち","有楽町":"ゆうらくちょう","麹町":"こうじまち",
+  "九段南":"くだんみなみ","九段北":"くだんきた","神田三崎町":"かんださんさきちょう",
+  "神田錦町":"かんだにしきちょう","神田小川町":"かんだおがわまち","神田淡路町":"かんだあわじちょう",
+  "神田駿河台":"かんだするがだい","神田神保町":"かんだじんぼうちょう","平河町":"ひらかわちょう",
+  "紀尾井町":"きおいちょう","隼町":"はやぶさちょう","霞が関":"かすみがせき",
+  "永田町":"ながたちょう","内幸町":"うちさいわいちょう","北の丸公園":"きたのまるこうえん",
+  /* 中央区 */
+  "銀座":"ぎんざ","築地":"つきじ","日本橋":"にほんばし","京橋":"きょうばし",
+  "月島":"つきしま","勝どき":"かちどき","晴海":"はるみ","八丁堀":"はっちょうぼり",
+  "新川":"しんかわ","東日本橋":"ひがしにほんばし","人形町":"にんぎょうちょう",
+  "浜町":"はまちょう","明石町":"あかしちょう","入船":"いりふね","湊":"みなと",
+  "佃":"つくだ","豊海町":"とよみちょう","日本橋小伝馬町":"にほんばしこでんまちょう",
+  "日本橋茅場町":"にほんばしかやばちょう","日本橋兜町":"にほんばしかぶとちょう",
+  /* 港区 */
+  "赤坂":"あかさか","麻布台":"あざぶだい","麻布十番":"あざぶじゅうばん",
+  "南麻布":"みなみあざぶ","東麻布":"ひがしあざぶ","西麻布":"にしあざぶ",
+  "元麻布":"もとあざぶ","芝":"しば","芝浦":"しばうら","芝公園":"しばこうえん",
+  "浜松町":"はままつちょう","海岸":"かいがん","虎ノ門":"とらのもん",
+  "六本木":"ろっぽんぎ","白金":"しろかね","白金台":"しろかねだい",
+  "高輪":"たかなわ","三田":"みた","港南":"こうなん","台場":"だいば",
+  "南青山":"みなみあおやま","北青山":"きたあおやま","愛宕":"あたご",
+  "新橋":"しんばし","東新橋":"ひがしにしんばし","西新橋":"にししんばし",
+  "赤羽橋":"あかばねばし","三田":"みた","芝大門":"しばだいもん",
+  /* 新宿区 */
+  "新宿":"しんじゅく","西新宿":"にししんじゅく","北新宿":"きたしんじゅく",
+  "大久保":"おおくぼ","百人町":"ひゃくにんちょう","歌舞伎町":"かぶきちょう",
+  "四谷":"よつや","市谷田町":"いちがやたまち","市谷加賀町":"いちがやかがちょう",
+  "河田町":"かわだちょう","若葉":"わかば","信濃町":"しなのまち",
+  "三栄町":"さんえいちょう","神楽坂":"かぐらざか","箪笥町":"たんすちょう",
+  "矢来町":"やらいちょう","高田馬場":"たかだのばば","下落合":"しもおちあい",
+  "中落合":"なかおちあい","上落合":"かみおちあい","西落合":"にしおちあい",
+  "中井":"なかい","山吹町":"やまぶきちょう","天神町":"てんじんちょう",
+  "喜久井町":"きくいちょう","払方町":"はらいかたまち","榎町":"えのきちょう",
+  /* 文京区 */
+  "本郷":"ほんごう","湯島":"ゆしま","春日":"かすが","水道":"すいどう",
+  "後楽":"こうらく","小石川":"こいしかわ","大塚":"おおつか","音羽":"おとわ",
+  "千駄木":"せんだぎ","向丘":"むこうがおか","白山":"はくさん",
+  "本駒込":"ほんこまごめ","根津":"ねづ","弥生":"やよい","西片":"にしかた",
+  "真砂":"まさご","目白台":"めじろだい","関口":"せきぐち",
+  /* 台東区 */
+  "浅草":"あさくさ","上野":"うえの","蔵前":"くらまえ","浅草橋":"あさくさばし",
+  "駒形":"こまかた","寿":"ことぶき","柳橋":"やなぎばし","鳥越":"とりごえ",
+  "三筋":"みすじ","元浅草":"もとあさくさ","根岸":"ねぎし",
+  "上野桜木":"うえのさくらぎ","谷中":"やなか","池之端":"いけのはた",
+  "東上野":"ひがしうえの","北上野":"きたうえの","雷門":"かみなりもん",
+  "花川戸":"はなかわど","今戸":"いまど","橋場":"はしば","清川":"きよかわ",
+  "日本堤":"にほんづつみ","千束":"せんぞく","松が谷":"まつがや",
+  /* 品川区 */
+  "品川":"しながわ","大崎":"おおさき","上大崎":"かみおおさき",
+  "五反田":"ごたんだ","西五反田":"にしごたんだ","東五反田":"ひがしごたんだ",
+  "北品川":"きたしながわ","東品川":"ひがししながわ","南品川":"みなみしながわ",
+  "大井":"おおい","旗の台":"はたのだい","荏原":"えばら","平塚":"ひらつか",
+  "小山":"こやま","戸越":"とごし","中延":"なかのぶ","武蔵小山":"むさしこやま",
+  /* 目黒区 */
+  "目黒":"めぐろ","青葉台":"あおばだい","上目黒":"かみめぐろ",
+  "中目黒":"なかめぐろ","下目黒":"しもめぐろ","東山":"ひがしやま",
+  "大橋":"おおはし","駒場":"こまば","大岡山":"おおおかやま",
+  "碑文谷":"ひもんや","洗足":"せんぞく","鷹番":"たかのばん",
+  "自由が丘":"じゆうがおか","中根":"なかね","緑が丘":"みどりがおか",
+  "八雲":"やくも","柿の木坂":"かきのきざか","宮前":"みやまえ",
+  "五本木":"ごほんぎ","祐天寺":"ゆうてんじ","原町":"はらまち",
+  "平町":"たいらまち","南":"みなみ","三田":"みた",
+  /* 大田区 */
+  "大森":"おおもり","蒲田":"かまた","田園調布":"でんえんちょうふ",
+  "多摩川":"たまがわ","鵜の木":"うのき","下丸子":"しもまるこ",
+  "久が原":"くがはら","千鳥":"ちどり","池上":"いけがみ","上池台":"かみいけだい",
+  "山王":"さんのう","羽田":"はねだ","南馬込":"みなみまごめ","北馬込":"きたまごめ",
+  "西馬込":"にしまごめ","雪谷大塚町":"ゆきがやおおつかまち",
+  /* 世田谷区 */
+  "世田谷":"せたがや","三軒茶屋":"さんげんちゃや","太子堂":"たいしどう",
+  "若林":"わかばやし","下馬":"しもうま","三宿":"みしゅく","上馬":"かみうま",
+  "弦巻":"つるまき","経堂":"きょうどう","宮坂":"みやさか",
+  "豪徳寺":"ごうとくじ","梅丘":"うめがおか","松原":"まつばら",
+  "代沢":"だいざわ","代田":"だいた","北沢":"きたざわ","池尻":"いけじり",
+  "野沢":"のざわ","駒沢":"こまざわ","上用賀":"かみようが","用賀":"ようが",
+  "玉川":"たまがわ","等々力":"とどろき","玉川台":"たまがわだい",
+  "砧":"きぬた","大蔵":"おおくら","給田":"きゅうでん","成城":"せいじょう",
+  "船橋":"ふなばし","桜丘":"さくらがおか","烏山":"からすやま",
+  "祖師谷":"そしがや","千歳台":"ちとせだい","赤堤":"あかつつみ",
+  "岡本":"おかもと","上野毛":"かみのげ","瀬田":"せた","尾山台":"おやまだい",
+  "奥沢":"おくざわ","深沢":"ふかさわ","新町":"しんまち","喜多見":"きたみ",
+  "東玉川":"ひがしたまがわ","野毛":"のげ","玉堤":"たまつつみ",
+  "中町":"なかまち","宮の坂":"みやのさか","鎌田":"かまた","八幡山":"はちまんやま",
+  "粕谷":"かすや","南烏山":"みなみからすやま","北烏山":"きたからすやま",
+  /* 渋谷区 */
+  "渋谷":"しぶや","神宮前":"じんぐうまえ","宇田川町":"うだがわちょう",
+  "桜丘町":"さくらがおかちょう","道玄坂":"どうげんざか","神南":"じんなん",
+  "松濤":"しょうとう","鉢山町":"はちやまちょう","代官山町":"だいかんやまちょう",
+  "恵比寿":"えびす","恵比寿西":"えびすにし","恵比寿南":"えびすみなみ",
+  "広尾":"ひろお","南平台町":"なんぺいだいちょう","富ヶ谷":"とみがや",
+  "幡ヶ谷":"はたがや","本町":"ほんまち","笹塚":"ささづか","大山町":"おおやまちょう",
+  "初台":"はつだい","西原":"にしはら","上原":"うえはら","円山町":"まるやまちょう",
+  "猿楽町":"さるがくちょう","鶯谷町":"うぐいすだにちょう",
+  /* 中野区 */
+  "中野":"なかの","東中野":"ひがしなかの","上高田":"かみたかだ",
+  "新井":"あらい","鷺宮":"さぎのみや","上鷺宮":"かみさぎのみや",
+  "若宮":"わかみや","大和町":"やまとちょう","弥生町":"やよいちょう",
+  "南台":"みなみだい","野方":"のがた","丸山":"まるやま",
+  "江古田":"えこだ","沼袋":"ぬまぶくろ","松が丘":"まつがおか",
+  "白鷺":"しらさぎ","江原町":"えばらちょう","向台町":"むかいだいちょう",
+  /* 杉並区 */
+  "阿佐谷北":"あさがやきた","阿佐谷南":"あさがやみなみ","荻窪":"おぎくぼ",
+  "桃井":"ももい","西荻北":"にしおぎきた","西荻南":"にしおぎみなみ",
+  "善福寺":"ぜんぷくじ","今川":"いまがわ","松庵":"しょうあん","和田":"わだ",
+  "成田東":"なりたひがし","成田西":"なりたにし","天沼":"あまぬま",
+  "方南町":"ほうなんちょう","堀ノ内":"ほりのうち","梅里":"うめざと",
+  "浜田山":"はまだやま","永福町":"えいふくちょう","和泉":"いずみ",
+  "高円寺南":"こうえんじみなみ","高円寺北":"こうえんじきた",
+  "下井草":"しもいぐさ","上井草":"かみいぐさ","井草":"いぐさ",
+  "清水":"しみず","南荻窪":"みなみおぎくぼ","宮前":"みやまえ",
+  "松ノ木":"まつのき","大宮前":"おおみやまえ",
+  /* 豊島区 */
+  "池袋":"いけぶくろ","南池袋":"みなみいけぶくろ","北池袋":"きたいけぶくろ",
+  "東池袋":"ひがしいけぶくろ","西池袋":"にしいけぶくろ",
+  "雑司が谷":"ぞうしがや","高田":"たかだ","目白":"めじろ",
+  "要町":"かなめちょう","千早":"ちはや","千川":"せんかわ",
+  "駒込":"こまごめ","巣鴨":"すがも","西巣鴨":"にしすがも",
+  "北大塚":"きたおおつか","南大塚":"みなみおおつか","長崎":"ながさき",
+  "南長崎":"みなみながさき","上池袋":"かみいけぶくろ",
+  /* 北区 */
+  "赤羽":"あかばね","赤羽南":"あかばねみなみ","赤羽北":"あかばねきた",
+  "西赤羽":"にしあかばね","王子":"おうじ","王子本町":"おうじほんまち",
+  "志茂":"しも","十条台":"じゅうじょうだい","東十条":"ひがしじゅうじょう",
+  "神谷":"かみや","豊島":"としま","滝野川":"たきのがわ",
+  /* 荒川区 */
+  "荒川":"あらかわ","東尾久":"ひがしおぐ","西尾久":"にしおぐ",
+  "東日暮里":"ひがしにっぽり","西日暮里":"にしにっぽり",
+  "南千住":"みなみせんじゅ","町屋":"まちや","三河島":"みかわしま",
+  "日暮里":"にっぽり",
+  /* 板橋区 */
+  "板橋":"いたばし","大山":"おおやま","成増":"なります","常盤台":"ときわだい",
+  "加賀":"かが","蓮根":"はすね","小豆沢":"あずさわ","高島平":"たかしまだいら",
+  "徳丸":"とくまる","舟渡":"ふなど","中板橋":"なかいたばし","前野町":"まえのちょう",
+  "熊野町":"くまのちょう","赤塚":"あかつか","成増":"なります",
+  /* 練馬区 */
+  "練馬":"ねりま","石神井台":"しゃくじいだい","石神井町":"しゃくじいまち",
+  "光が丘":"ひかりがおか","大泉学園町":"おおいずみがくえんちょう",
+  "大泉町":"おおいずみまち","東大泉":"ひがしおおいずみ","西大泉":"にしおおいずみ",
+  "富士見台":"ふじみだい","桜台":"さくらだい","豊玉北":"とよたまきた",
+  "豊玉南":"とよたまみなみ","谷原":"やはら","関町南":"せきまちみなみ",
+  "関町北":"せきまちきた","田柄":"たから","春日町":"かすがちょう",
+  "旭丘":"あさひがおか","高野台":"たかのだい",
+  /* 足立区 */
+  "綾瀬":"あやせ","西新井":"にしあらい","千住":"せんじゅ",
+  "花畑":"はなはた","梅田":"うめだ","東和":"ひがしわ",
+  /* 葛飾区 */
+  "亀有":"かめあり","高砂":"たかさご","金町":"かなまち","立石":"たていし",
+  "四つ木":"よつぎ","新小岩":"しんこいわ","柴又":"しばまた","堀切":"ほりきり",
+  /* 江戸川区 */
+  "小松川":"こまつがわ","平井":"ひらい","船堀":"ふなぼり","一之江":"いちのえ",
+  "葛西":"かさい","東葛西":"ひがしかさい","西葛西":"にしかさい",
+  "北葛西":"きたかさい","南葛西":"みなみかさい","松江":"まつえ","瑞江":"みずえ",
+  /* 墨田区 */
+  "押上":"おしあげ","錦糸町":"きんしちょう","本所":"ほんじょ",
+  "業平":"なりひら","向島":"むこうじま","京島":"きょうじま",
+  "吾妻橋":"あずまばし","文花":"ふみはな","墨田":"すみだ","八広":"やひろ",
+  /* 江東区 */
+  "豊洲":"とよす","有明":"ありあけ","東雲":"しののめ","辰巳":"たつみ",
+  "木場":"きば","東陽":"とうよう","猿江":"さるえ","住吉":"すみよし",
+  "亀戸":"かめいど","大島":"おおじま","門前仲町":"もんぜんなかちょう",
+  "清澄":"きよすみ","越中島":"えっちゅうじま","佐賀":"さが",
+  "富岡":"とみおか","白河":"しらかわ","三好":"みよし",
+  /* 三鷹市 */
+  "三鷹":"みたか","下連雀":"しもれんじゃく","上連雀":"かみれんじゃく",
+  "野崎":"のざき","牟礼":"むれ","大沢":"おおさわ","井口":"いのくち",
+  "北野":"きたの","深大寺":"じんだいじ","新川":"しんかわ",
+  /* 武蔵野市 */
+  "吉祥寺本町":"きちじょうじほんちょう","吉祥寺北町":"きちじょうじきたまち",
+  "吉祥寺南町":"きちじょうじみなみちょう","吉祥寺東町":"きちじょうじひがしちょう",
+  "御殿山":"ごてんやま","西久保":"にしくぼ","緑町":"みどりちょう",
+  "八幡町":"やわたちょう","関前":"せきまえ","境":"さかい",
+  "境南町":"さかいみなみちょう","桜堤":"さくらつつみ",
+};
+
+/* ── エリア名から読みを取得 ── */
+function getReading(area){
+  const base=area.replace(/[〇一二三四五六七八九十百]+丁目$/,"").replace(/\d+丁目$/,"");
+  return FURIGANA[base]||FURIGANA[area]||"";
+}
+
+/* ── エリア名が検索クエリにマッチするか ── */
+function matchArea(area,q){
+  if(!q)return true;
+  if(area.includes(q))return true;
+  const reading=getReading(area);
+  return reading.includes(q);
+}
+
+/* ── 丁目を含むエリアを正しくソート ── */
+const KANJI_NUM={"〇":0,"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9,"十":10};
+function chomeNum(s){
+  const m=s.match(/([〇一二三四五六七八九十]+)丁目/);
+  if(!m)return -1;
+  let n=0;for(const c of m[1])n=n*10+(KANJI_NUM[c]||0);
+  return n;
+}
+function sortAreas(arr){
+  return [...arr].sort((a,b)=>{
+    const ba=a.replace(/[〇一二三四五六七八九十]+丁目$/,"");
+    const bb=b.replace(/[〇一二三四五六七八九十]+丁目$/,"");
+    if(ba!==bb)return ba.localeCompare(bb,"ja");
+    const na=chomeNum(a),nb=chomeNum(b);
+    if(na>=0&&nb>=0)return na-nb;
+    return 0;
+  });
+}
+const SHIFT_START_HOUR = 5;  /* B勤(8時出庫〜翌2時半)：境界5時 */
+
+/* 市区の地理グループ（ピッカー表示用）*/
+const WARD_GROUPS = [
+  {label:"都心",  wards:["千代田区","中央区","港区","新宿区","渋谷区"]},
+  {label:"城南",  wards:["品川区","目黒区","大田区","世田谷区"]},
+  {label:"城西",  wards:["中野区","杉並区","練馬区"]},
+  {label:"城北",  wards:["文京区","豊島区","北区","荒川区","板橋区"]},
+  {label:"城東",  wards:["台東区","墨田区","江東区","足立区","葛飾区","江戸川区"]},
+  {label:"多摩",  wards:["三鷹市","武蔵野市"]},
+];
+
+const {useState,useEffect,useMemo,useCallback,useRef} = React;
+const pad2 = n => String(n).padStart(2,"0");
+
+/* 高速代入力欄：親の再レンダリングで再マウントされIMEが消える問題を防ぐため
+   トップレベルでmemo化し、ローカルstateで入力を保持、blurで親へ反映 */
+const KosoukuInput = React.memo(function KosoukuInput({initial,onCommit}){
+  /* 非制御入力：入力中はReactがvalueを書き戻さないためIMEセッションが切れない。
+     確定(onBlur)時のみ親stateへコミット。数字専用欄なので非制御で表示問題なし。 */
+  const ref=React.useRef(null);
+  const sanitize=el=>{const c=el.value.replace(/[^0-9]/g,"");if(el.value!==c)el.value=c;};
+  return (
+    <input ref={ref} type="tel" inputMode="numeric" defaultValue={initial||""}
+      onInput={e=>sanitize(e.target)}
+      onBlur={e=>onCommit(e.target.value)}
+      placeholder="0"
+      style={{width:110,fontFamily:"var(--mono)",textAlign:"right",padding:"6px 8px",fontSize:16,
+              background:"var(--bg)",border:"0.5px solid var(--bdr)",borderRadius:"var(--r)",color:"var(--txt)"}}
+    />
+  );
+});
+
+/* 納金集計の各セクション：コンポーネント本体の外でmemo化。
+   本体内に定義すると毎レンダリングで関数が再生成され、配下のKosoukuInputが
+   再マウントされてIMEが閉じるため、必ずトップレベルに置く（Sはトップレベル定数） */
+const Section = React.memo(function Section({num,label,sub,amount,count,color,items,extra}){
+  return (
+    <div style={{...S.card,marginBottom:8,borderLeft:`3px solid ${color}`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div style={{flex:1}}>
+          <p style={{fontSize:11,color:"var(--txt3)",margin:"0 0 2px"}}>
+            <span style={{fontWeight:600,color}}>{num}</span>　{label}
+            {sub&&<span style={{marginLeft:6}}>{sub}</span>}
+          </p>
+          {count!=null&&<p style={{fontSize:12,color:"var(--txt3)",margin:"0 0 4px"}}>{count}件</p>}
+          {items&&Object.keys(items).length>1&&Object.entries(items).map(([p,{total:t,count:c}])=>(
+            <p key={p} style={{fontSize:12,color:"var(--txt3)",margin:"1px 0"}}>
+              {p}　{c}件　¥{t.toLocaleString()}
+            </p>
+          ))}
+          {extra}
+        </div>
+        <span style={{fontSize:24,fontWeight:500,fontFamily:"var(--mono)",color,flexShrink:0,marginLeft:12}}>
+          {amount<0?"-":""} ¥{Math.abs(amount).toLocaleString()}
+        </span>
+      </div>
+    </div>
+  );
+});
+
+/* ── 時刻・日付（B勤 境界5時：8時出庫〜翌2時半を 8:00〜26:xx でくくる）── */
+function getShiftNow(){
+  const d=new Date(), h=d.getHours();
+  return `${pad2(h < SHIFT_START_HOUR ? h+24 : h)}:${pad2(d.getMinutes())}`;
+}
+function getShiftDate(){
+  const d=new Date();
+  if(d.getHours() < SHIFT_START_HOUR) d.setDate(d.getDate()-1);
+  return `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())}`;
+}
+const getDow = s=>{
+  if(!s)return"";
+  const d=new Date(s.replace(/\//g,"-"));
+  return isNaN(d)?"":DOW_JP[d.getDay()]||"";
+};
+
+/* ── 実車時間計算 ── */
+function calcJitsu(p,d){
+  const toM=t=>{if(!t)return null;const[h,m]=t.split(":").map(Number);return h*60+(m||0);};
+  const pm=toM(p),dm=toM(d);
+  if(pm==null||dm==null)return"";
+  let diff=dm-pm; if(diff<0)diff+=24*60;
+  return `${Math.floor(diff/60)}:${pad2(diff%60)}`;
+}
+
+/* ── 住所パース ── */
+function parseAddr(addr){
+  if(!addr)return{ward:"その他",area:""};
+  const m=addr.match(/^(.+?[区市郡])(.+)$/);
+  return m?{ward:m[1],area:m[2]}:{ward:"その他",area:addr};
+}
+
+/* ── 料金フォーマット ── */
+function fmtFare(n){
+  const v=parseInt(String(n).replace(/[^0-9]/g,""));
+  return isNaN(v)?"":"¥"+v.toLocaleString();
+}
+
+/* ── Haversine距離（km）── */
+function haversine(lat1,lon1,lat2,lon2){
+  const R=6371, toR=x=>x*Math.PI/180;
+  const dLat=toR(lat2-lat1), dLon=toR(lon2-lon1);
+  const a=Math.sin(dLat/2)**2 +
+          Math.cos(toR(lat1))*Math.cos(toR(lat2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+/* ── DBから緯度・経度を読む（列名不問・東京圏の値範囲で自動検出）── */
+function extractLatLng(row){
+  /* まず列名で探す */
+  const lat0=parseFloat(row["緯度"]||row["lat"]||row["latitude"]||row["Lat"]||row["LAT"]||"");
+  const lng0=parseFloat(row["経度"]||row["lng"]||row["longitude"]||row["Lng"]||row["LON"]||row["lon"]||"");
+  if(!isNaN(lat0)&&!isNaN(lng0))return{lat:lat0,lng:lng0};
+  /* 列名が違う場合：値の範囲で判定（緯度34〜36、経度138〜141）*/
+  const nums=Object.values(row).map(v=>parseFloat(v)).filter(v=>!isNaN(v));
+  const lat=nums.find(v=>v>=34&&v<=36);
+  const lng=nums.find(v=>v>=138&&v<=141);
+  return(lat&&lng)?{lat,lng}:null;
+}
+
+/* ── GPS：最寄り地点を検索 ── */
+function findNearest(lat,lng,locList){
+  let best=null, bestDist=Infinity;
+  for(const loc of locList){
+    if(!loc.lat||!loc.lng)continue;
+    const d=haversine(lat,lng,loc.lat,loc.lng);
+    if(d<bestDist){bestDist=d;best=loc;}
+  }
+  return best ? {...best, distM:Math.round(bestDist*1000)} : null;
+}
+
+/* ── GPS取得 Promise ── */
+function getGPS(timeoutMs=8000){
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation){reject(new Error("GPS非対応"));return;}
+    navigator.geolocation.getCurrentPosition(
+      p=>resolve({lat:p.coords.latitude,lng:p.coords.longitude,acc:Math.round(p.coords.accuracy)}),
+      e=>reject(new Error(e.code===1?"位置情報の許可が必要です":e.code===2?"GPS取得失敗":"タイムアウト")),
+      {enableHighAccuracy:true,timeout:timeoutMs,maximumAge:0}
+    );
+  });
+}
+
+/* ── Google Forms 送信 ── */
+async function submitToForm(trip){
+  if(!FORM_ID)return false;
+  const url=`https://docs.google.com/forms/d/e/${FORM_ID}/formResponse`;
+  const body=new FormData();
+  const map={
+    [FIELDS.date]:trip.date,       [FIELDS.dow]:trip.dow,
+    [FIELDS.pTime]:trip.pTime,     [FIELDS.dTime]:trip.dTime,  [FIELDS.jitsu]:trip.jitsu,
+    [FIELDS.pWard]:trip.pWard,     [FIELDS.pArea]:trip.pArea,
+    [FIELDS.pLat]:trip.pLat!=null?String(trip.pLat):"",
+    [FIELDS.pLng]:trip.pLng!=null?String(trip.pLng):"",
+    [FIELDS.dWard]:trip.dWard,     [FIELDS.dArea]:trip.dArea,
+    [FIELDS.dLat]:trip.dLat!=null?String(trip.dLat):"",
+    [FIELDS.dLng]:trip.dLng!=null?String(trip.dLng):"",
+    [FIELDS.fare]:fmtFare(trip.fare), [FIELDS.acc]:trip.acc,
+    [FIELDS.stat]:trip.stat,       [FIELDS.pay]:trip.pay,
+    [FIELDS.sankyu]:trip.sankyu,   [FIELDS.kotei]:trip.kotei,
+    [FIELDS.custType]:Array.isArray(trip.custType)?trip.custType.join("/")||"":trip.custType||"",
+    [FIELDS.yuusen]:trip.yuusen?"優":"",
+    [FIELDS.easternName]:trip.easternName||"",
+    [FIELDS.koteiMemo]:trip.koteiMemo||"",
+    [FIELDS.memo]:trip.memo||"",
+  };
+  Object.entries(map).forEach(([k,v])=>body.append(k,v));
+  try{await fetch(url,{method:"POST",mode:"no-cors",body});return true;}
+  catch{return false;}
+}
+
+/* ── 空転フォーム送信 ── */
+async function submitKuutenToForm(k){
+  if(!KUUTEN_FORM_ID)return false;
+  const url=`https://docs.google.com/forms/d/e/${KUUTEN_FORM_ID}/formResponse`;
+  const body=new FormData();
+  const map={
+    [KUUTEN_FIELDS.date]: k.date,
+    [KUUTEN_FIELDS.kType]:k.kType==="A"?"迎車キャンセル":"メーター空転",
+    [KUUTEN_FIELDS.time]: k.time,
+    [KUUTEN_FIELDS.ward]: k.ward,
+    [KUUTEN_FIELDS.area]: k.area,
+    [KUUTEN_FIELDS.lat]:  k.lat!=null?String(k.lat):"",
+    [KUUTEN_FIELDS.lng]:  k.lng!=null?String(k.lng):"",
+    [KUUTEN_FIELDS.fare]: fmtFare(k.fare),
+    [KUUTEN_FIELDS.memo]: k.memo||"",
+  };
+  Object.entries(map).forEach(([key,val])=>body.append(key,val));
+  try{await fetch(url,{method:"POST",mode:"no-cors",body});return true;}
+  catch{return false;}
+}
+
+/* ── 休憩フォーム送信 ── */
+async function submitBreakToForm(b){
+  if(!REST_FORM_ID)return false;
+  const url=`https://docs.google.com/forms/d/e/${REST_FORM_ID}/formResponse`;
+  const body=new FormData();
+  const map={
+    [REST_FIELDS.date]:      b.date,
+    [REST_FIELDS.startTime]: b.startTime,
+    [REST_FIELDS.endTime]:   b.endTime,
+    [REST_FIELDS.minutes]:   String(b.minutes),
+    [REST_FIELDS.lat]:       b.lat||"",
+    [REST_FIELDS.lng]:       b.lng||"",
+    [REST_FIELDS.memo]:      b.memo||"",
+  };
+  Object.entries(map).forEach(([k,v])=>body.append(k,v));
+  try{await fetch(url,{method:"POST",mode:"no-cors",body});return true;}
+  catch{return false;}
+}
+
+/* ── 日報フォーム送信 ── */
+async function submitNippouToForm(d){
+  if(!NIPPOU_FORM_ID)return false;
+  const url=`https://docs.google.com/forms/d/e/${NIPPOU_FORM_ID}/formResponse`;
+  const body=new FormData();
+  Object.entries(NIPPOU_FIELDS).forEach(([k,v])=>body.append(v,d[k]||""));
+  try{await fetch(url,{method:"POST",mode:"no-cors",body});return true;}
+  catch{return false;}
+}
+
+/* ══════════════════════════════════════
+   スタイル定数
+══════════════════════════════════════ */
+const S={
+  wrap: {maxWidth:480,margin:"0 auto",minHeight:"100vh",background:"var(--bg3)"},
+  hdr:  {background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)",padding:"11px 14px",
+         display:"flex",alignItems:"center",justifyContent:"space-between",
+         position:"sticky",top:0,zIndex:10},
+  body: {padding:"10px 12px 90px"},
+  card: {background:"var(--bg)",borderRadius:"var(--rl)",border:"0.5px solid var(--bdr)",
+         padding:"11px 13px",marginBottom:8},
+  lbl:  {fontSize:12,color:"var(--txt2)",margin:"0 0 5px",display:"block"},
+  inp:  {width:"100%",padding:"9px 10px",border:"0.5px solid var(--bdr2)",
+         borderRadius:"var(--r)",fontSize:16,background:"var(--bg)",
+         color:"var(--txt)",boxSizing:"border-box",outline:"none"},
+  fab:  {position:"fixed",bottom:20,right:20,width:56,height:56,borderRadius:"50%",
+         background:"var(--bg)",border:"0.5px solid var(--bdr2)",fontSize:26,
+         cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
+         color:"var(--txt)",zIndex:20,boxShadow:"0 2px 12px rgba(0,0,0,.15)"},
+  bottomBar:{position:"fixed",bottom:0,left:0,right:0,maxWidth:480,margin:"0 auto",
+             height:64,background:"var(--bg)",borderTop:"0.5px solid var(--bdr)",
+             display:"flex",alignItems:"stretch",zIndex:20,
+             paddingBottom:"env(safe-area-inset-bottom,0px)"},
+  bbBtn:{flex:1,display:"flex",flexDirection:"column",alignItems:"center",
+         justifyContent:"center",gap:3,border:"none",background:"none",
+         cursor:"pointer",fontSize:11,fontWeight:500},
+};
+
+/* ══════════════════════════════════════
+   共通コンポーネント
+══════════════════════════════════════ */
+function Toggle({on,onToggle,label,sub,color}){
+  const c=color||"var(--info)";
+  return <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+    <div>
+      <p style={{fontSize:14,fontWeight:on?500:400,color:on?c:"var(--txt)",margin:0}}>{label}</p>
+      {sub&&<p style={{fontSize:11,color:"var(--txt3)",margin:"2px 0 0"}}>{sub}</p>}
+    </div>
+    <button onClick={onToggle} style={{
+      width:46,height:26,borderRadius:13,padding:"0 2px",cursor:"pointer",flexShrink:0,
+      background:on?`color-mix(in srgb, ${c} 15%, var(--bg))`:"var(--bg2)",
+      border:`0.5px solid ${on?c:"var(--bdr2)"}`,display:"flex",alignItems:"center",
+    }}>
+      <div style={{width:20,height:20,borderRadius:"50%",background:on?c:"var(--txt3)",
+                   marginLeft:on?"auto":0,transition:"margin .2s"}}/>
+    </button>
+  </div>;
+}
+
+function Chip({opts,val,onC,clrMap={}}){
+  return <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
+    {opts.map(o=>{const cl=clrMap[o]||"var(--txt2)";return(
+      <button key={o} onClick={()=>onC(o)} style={{
+        padding:"7px 12px",borderRadius:20,fontSize:13,cursor:"pointer",
+        border:`0.5px solid ${val===o?cl:"var(--bdr)"}`,
+        background:val===o?"var(--bg2)":"var(--bg)",
+        color:val===o?cl:"var(--txt2)",fontWeight:val===o?500:400,
+      }}>{o}</button>
+    );})}
+  </div>;
+}
+
+function LocBtn({ward,area,lat,lng,onClick}){
+  const hasGps=lat!=null&&lng!=null;
+  return <button onClick={onClick} style={{
+    width:"100%",padding:"10px 12px",border:"0.5px solid var(--bdr2)",
+    borderRadius:"var(--r)",background:"var(--bg2)",
+    color:ward?"var(--txt)":"var(--txt3)",fontSize:14,cursor:"pointer",
+    textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"
+  }}>
+    <span>
+      {ward?`${ward}　${area}`:"市区・地名を選択 →"}
+      {hasGps&&<span style={{fontSize:11,color:"var(--ok)",marginLeft:6}}>
+        <i className="ti ti-map-pin" style={{fontSize:11}}/> GPS
+      </span>}
+    </span>
+    <i className="ti ti-chevron-right" style={{fontSize:14,color:"var(--txt3)"}}/>
+  </button>;
+}
+
+function fmtTimeInput(val){
+  /* 数字のみ抽出、最大4桁 */
+  const d=val.replace(/[^0-9]/g,"").slice(0,4);
+  if(d.length<=2)return d;
+  return d.slice(0,2)+":"+d.slice(2);
+}
+
+/* 休憩時間専用：末尾2桁を「分」、それより前を「時」とする（230→2:30）*/
+function fmtKyukeiInput(val){
+  const d=val.replace(/[^0-9]/g,"").slice(0,4);
+  if(d.length<=2)return d;
+  return d.slice(0,-2)+":"+d.slice(-2);
+}
+
+function TimeRow({label,val,set,jitsuLabel}){
+  return <div style={{marginBottom:10}}>
+    <p style={{fontSize:11,color:jitsuLabel?"var(--info)":"var(--txt3)",margin:"0 0 4px"}}>
+      {label}{jitsuLabel?` （実車 ${jitsuLabel}）`:""}
+    </p>
+    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+      <input type="tel" value={val}
+        onChange={e=>set(fmtTimeInput(e.target.value))}
+        placeholder="HH:MM"
+        style={{...S.inp,width:100,fontSize:22,fontFamily:"var(--mono)",textAlign:"center",
+                padding:"8px 6px",flexShrink:0}}/>
+      <button onClick={()=>set(getShiftNow())} style={{
+        padding:"8px 14px",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",
+        background:"var(--bg2)",color:"var(--txt2)",fontSize:13,cursor:"pointer"
+      }}>今の時刻</button>
+    </div>
+  </div>;
+}
+
+/* ══════════════════════════════════════
+   App
+══════════════════════════════════════ */
+function App(){
+  /* ── 住所DB（ward/area/lat/lng の配列）── */
+  const [locList,setLocList]=useState([]); // [{ward,area,lat,lng,name}]
+  const [locDB,setLocDB]=useState({});     // {ward:[area,...]}
+  const [locLoad,setLocLoad]=useState(true);
+  const [locN,setLocN]=useState(0);
+  const [wards,setWards]=useState([]);
+
+  /* ── データ ── */
+  const [trips,setTrips]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem(STORE_KEY)||"[]");}catch{return[];}
+  });
+  const [kuutens,setKuutens]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem(KUUTEN_KEY)||"[]");}catch{return[];}
+  });
+
+  /* ── 画面制御 ── */
+  const [screen,setScreen]=useState("log");
+  const [editId,setEditId]=useState(null);
+  const [copied,setCopied]=useState(false);
+  const [sending,setSending]=useState(false);
+  const [nokinCopied,setNokinCopied]=useState(false);
+  const [kosouku,setKosouku]=useState("");
+  const [hasDraft,setHasDraft]=useState(()=>!!localStorage.getItem("eimu_B_form_draft"));
+  const [locHistory,setLocHistory]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||"[]");}catch{return[];}
+  });
+  const [nippouSending,setNippouSending]=useState(false);
+  const [nippouForm,setNippouForm]=useState({
+    date:"",dow:"",nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",kinmu:"",
+    zensokou:"",jissha:"",musen:"",shukkin:"",taisha:"",
+    rank01:"",rank02:"",taxi:"JAP",kurotaku:"青",deban:"J",
+  });
+  const setNF=(field,val)=>setNippouForm(f=>({...f,[field]:val}));
+  /* 出勤記録（出勤時に入力→日報スキャンに引き継ぎ）*/
+  const [shukkinForm,setShukkinForm]=useState(()=>{
+    try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null")||{shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:"",rank02:""};}
+    catch{return{shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:"",rank02:""};}
+  });
+  const setSF=(f,v)=>setShukkinForm(s=>({...s,[f]:v}));
+  const [showRank02,setShowRank02]=useState(false);
+  /* 連続稼働時間（最後の休憩終了からの経過分）*/
+  const [lastRestEnd,setLastRestEnd]=useState(()=>{const v=localStorage.getItem("eimu_B_last_rest_end");return v?parseInt(v):null;});
+  const [contiguousSec,setContiguousSec]=useState(0);
+  /* シフトメモ */
+  const [shiftMemo,setShiftMemo]=useState(()=>localStorage.getItem("eimu_B_shift_memo")||"");
+  const [showMemo,setShowMemo]=useState(false);
+  /* ── 画面スリープ防止（Wake Lock API）──
+     HTTPS必須／iOS16.4以降対応。タブ非表示で自動解除されるため復帰時に再取得。*/
+  const [wakeOn,setWakeOn]=useState(false);
+  const wakeRef=React.useRef(null);
+  const wakeSupported=typeof navigator!=="undefined"&&"wakeLock"in navigator;
+  useEffect(()=>{
+    if(!wakeSupported)return;
+    let cancelled=false;
+    const acquire=async()=>{
+      if(!wakeOn||document.visibilityState!=="visible")return;
+      try{
+        const s=await navigator.wakeLock.request("screen");
+        if(cancelled){try{s.release();}catch{}return;}
+        wakeRef.current=s;
+        s.addEventListener("release",()=>{wakeRef.current=null;});
+      }catch{ if(!cancelled)setWakeOn(false); }
+    };
+    const release=()=>{
+      const s=wakeRef.current; wakeRef.current=null;
+      if(s){try{s.release();}catch{}}
+    };
+    if(wakeOn)acquire(); else release();
+    const onVis=()=>{ if(wakeOn&&document.visibilityState==="visible"&&!wakeRef.current)acquire(); };
+    document.addEventListener("visibilitychange",onVis);
+    return ()=>{ cancelled=true; document.removeEventListener("visibilitychange",onVis); release(); };
+  },[wakeOn,wakeSupported]);
+  const [fpCapturing,setFpCapturing]=useState(false); /* 乗車一括取得中 */
+  const [fdCapturing,setFdCapturing]=useState(false); /* 降車一括取得中 */
+  /* 休憩手動入力用 */
+  const [manualBS,setManualBS]=useState("");
+  const [manualBE,setManualBE]=useState("");
+  /* 休憩管理 */
+  const [breaks,setBreaks]=useState(()=>{try{return JSON.parse(localStorage.getItem(BREAK_STORE_KEY)||"[]");}catch{return[];}});
+  const [breakStart,setBreakStart]=useState(()=>localStorage.getItem("eimu_B_break_start")||null);
+  const [breakStartTs,setBreakStartTs]=useState(()=>{const v=localStorage.getItem("eimu_B_break_ts");return v?parseInt(v):null;});
+  const [elapsed,setElapsed]=useState(()=>{const v=localStorage.getItem("eimu_B_break_ts");return v?Math.floor((Date.now()-parseInt(v))/1000):0;});
+  const [sendResult,setSendResult]=useState(null);
+
+  /* ── 乗車記録フォーム ── */
+  const [formDate,setFormDate]=useState(getShiftDate());
+  const [fp,setFp]=useState(""); const [fd,setFd]=useState("");
+  const [fpWard,setFpWard]=useState(""); const [fpArea,setFpArea]=useState("");
+  const [fpLat,setFpLat]=useState(null); const [fpLng,setFpLng]=useState(null);
+  const [fdWard,setFdWard]=useState(""); const [fdArea,setFdArea]=useState("");
+  const [fdLat,setFdLat]=useState(null); const [fdLng,setFdLng]=useState(null);
+  const [fare,setFare]=useState("");
+  const [pay,setPay]=useState("GO Pay");
+  const [acc,setAcc]=useState("専用");
+  const [stat,setStat]=useState("GO");
+  const [sankyu,setSankyu]=useState("通常");
+  const [kotei,setKotei]=useState("N");
+  const [yuusen,setYuusen]=useState(false);
+  const [easternName,setEasternName]=useState("");
+  const [koteiMemo,setKoteiMemo]=useState("");
+  /* 今日のシフトで一時保存した車種のみ有効。別シフト/未設定はnull→従来通り全選択肢 */
+  const activeTaxi=(shukkinForm&&shukkinForm.taxiSetDate===getShiftDate())?shukkinForm.taxi:null;
+  /* 車種別の選択肢。activeTaxiがnullなら全選択肢（従来動作） */
+  const accOpts =activeTaxi==="PRE"?["プレタク"]:activeTaxi==="JAP"?["専用","通常"]:ACCOUNT_OPTS;
+  const statOpts=activeTaxi==="PRE"?["GO"]:activeTaxi==="JAP"?["GO","流し","スマ配"]:STATUS_OPTS;
+  const sankyuOpts=activeTaxi==="PRE"?["プレタク","プレタクP"]:activeTaxi==="JAP"?["通常","サンキュー"]:SANKYU_OPTS;
+  /* 支払方法：PREはGO Payのみ。JAP/未設定は全種類 */
+  const payOpts=activeTaxi==="PRE"?["GO Pay"]:PAYMENT_OPTS;
+  const [memo,setMemo]=useState("");
+  const [custType,setCustType]=useState([]); /* 客種別: array of flags */
+
+  /* ── 空転フォーム ── */
+  const [kType,setKType]=useState("A");
+  const [kTime,setKTime]=useState("");
+  const [kWard,setKWard]=useState(""); const [kArea,setKArea]=useState("");
+  const [kLat,setKLat]=useState(null); const [kLng,setKLng]=useState(null);
+  const [kFare,setKFare]=useState("500");
+  const [kMemo,setKMemo]=useState("");
+  const [kCapturing,setKCapturing]=useState(false);
+
+  /* ── 住所ピッカー ── */
+  const [pickerFor,setPickerFor]=useState(null); // "p"|"d"|"k"
+  const [pickWard,setPickWard]=useState("");
+  const [areaQ,setAreaQ]=useState("");
+  const [gpsState,setGpsState]=useState("idle"); // idle|loading|ok|err
+  const [gpsMsg,setGpsMsg]=useState("");
+
+  /* ── persist ── */
+  useEffect(()=>{try{localStorage.setItem(STORE_KEY,JSON.stringify(trips));}catch{}},[trips]);
+  useEffect(()=>{try{localStorage.setItem(KUUTEN_KEY,JSON.stringify(kuutens));}catch{}},[kuutens]);
+  useEffect(()=>{try{localStorage.setItem(BREAK_STORE_KEY,JSON.stringify(breaks));}catch{}},[breaks]);
+  /* シフトメモの自動保存（空なら削除）。これが無く保存が効いていなかった */
+  useEffect(()=>{try{if(shiftMemo)localStorage.setItem("eimu_B_shift_memo",shiftMemo);else localStorage.removeItem("eimu_B_shift_memo");}catch{}},[shiftMemo]);
+
+  /* フォーム下書き自動保存（フォーム画面中に何か入力があれば保存）*/
+  useEffect(()=>{
+    if(screen!=="form")return;
+    if(!fp&&!fare&&!fpWard)return; /* 空フォームは保存しない */
+    const d={editId,formDate,fp,fd,fpWard,fpArea,fpLat,fpLng,
+             fdWard,fdArea,fdLat,fdLng,fare,pay,acc,stat,
+             sankyu,kotei,yuusen,easternName,koteiMemo,custType,memo};
+    localStorage.setItem("eimu_B_form_draft",JSON.stringify(d));
+    setHasDraft(true);
+  },[screen,fp,fare,fpWard,fpArea,fdWard,fdArea,fd,formDate,
+     fpLat,fpLng,fdLat,fdLng,pay,acc,stat,sankyu,kotei,yuusen,easternName,koteiMemo,custType,memo,editId]);
+
+  /* 休憩タイマー */
+  useEffect(()=>{
+    if(!breakStartTs){setElapsed(0);return;}
+    const iv=setInterval(()=>setElapsed(Math.floor((Date.now()-breakStartTs)/1000)),1000);
+    return()=>clearInterval(iv);
+  },[breakStartTs]);
+
+  /* ── 住所DB読み込み（lat/lng も取得）── */
+  useEffect(()=>{
+    Papa.parse(LOC_CSV,{
+      download:true,header:true,skipEmptyLines:true,
+      complete:({data})=>{
+        const db={};const list=[];let n=0;
+        data.forEach(row=>{
+          const name=row["住所名"]||row["名称"]||row["場所名"]||
+                     Object.values(row).find(v=>v&&isNaN(v))||"";
+          if(!name.trim())return;
+          const{ward,area}=parseAddr(name.trim());
+          const coords=extractLatLng(row);
+          if(!db[ward])db[ward]=new Set();
+          db[ward].add(area);
+          list.push({ward,area,name:name.trim(),
+                     lat:coords?.lat||null, lng:coords?.lng||null});
+          n++;
+        });
+        const res={};
+        Object.keys(db).sort().forEach(k=>{res[k]=sortAreas(Array.from(db[k]));});
+        setLocDB(res); setWards(Object.keys(res));
+        setLocList(list); setLocN(n); setLocLoad(false);
+      },
+      error:()=>setLocLoad(false)
+    });
+  },[]);
+
+  const pickerAreas=useMemo(()=>{
+    if(!areaQ)return locDB[pickWard]||[];
+    if(pickWard){
+      /* 市区選択済み：その市区内でひらがな・漢字マッチ */
+      return(locDB[pickWard]||[]).filter(a=>matchArea(a,areaQ));
+    }else{
+      /* 市区未選択：全エリア横断検索 → {ward,area}の配列 */
+      const results=[];
+      for(const [w,areas] of Object.entries(locDB)){
+        for(const a of areas){
+          if(matchArea(a,areaQ))results.push({ward:w,area:a});
+        }
+      }
+      return results.slice(0,30);
+    }
+  },[locDB,pickWard,areaQ]);
+
+  /* ── 住所ピッカーを開く ── */
+  const openPicker=f=>{
+    setPickerFor(f);
+    setPickWard("");
+    setAreaQ(""); setGpsState("idle"); setGpsMsg("");
+  };
+
+  /* ── リストから住所を選択 ── */
+  const pickArea=(a,ward)=>{
+    const w=ward||pickWard;
+    if(pickerFor==="p"){setFpWard(w);setFpArea(a);setFpLat(null);setFpLng(null);}
+    else if(pickerFor==="d"){setFdWard(w);setFdArea(a);setFdLat(null);setFdLng(null);}
+    else{setKWard(w);setKArea(a);setKLat(null);setKLng(null);}
+    /* 履歴に保存 */
+    const entry={ward:w,area:a};
+    const newHist=[entry,...locHistory.filter(h=>!(h.ward===w&&h.area===a))].slice(0,8);
+    setLocHistory(newHist);
+    try{localStorage.setItem(HISTORY_KEY,JSON.stringify(newHist));}catch{}
+    setPickerFor(null);
+  };
+
+  /* ── GPSで現在地を取得して最寄り住所をセット ── */
+  const handleGPS=useCallback(async()=>{
+    setGpsState("loading"); setGpsMsg("GPS取得中…");
+    try{
+      const {lat,lng,acc}=await getGPS();
+      setGpsMsg(`精度 ±${acc}m で取得中…`);
+      const nearest=findNearest(lat,lng,locList.filter(l=>l.lat));
+      if(!nearest){setGpsState("err");setGpsMsg("近くの住所が見つかりませんでした");return;}
+      /* 確認メッセージ */
+      setGpsMsg(`📍 ${nearest.ward}${nearest.area}（約${nearest.distM}m）`);
+      setGpsState("ok");
+      /* セット */
+      if(pickerFor==="p"){
+        setFpWard(nearest.ward);setFpArea(nearest.area);
+        setFpLat(lat);setFpLng(lng);
+      }else if(pickerFor==="d"){
+        setFdWard(nearest.ward);setFdArea(nearest.area);
+        setFdLat(lat);setFdLng(lng);
+      }else{
+        setKWard(nearest.ward);setKArea(nearest.area);
+        setKLat(lat);setKLng(lng);
+      }
+      /* 少し待ってから閉じる */
+      setTimeout(()=>setPickerFor(null),1200);
+    }catch(e){
+      setGpsState("err");setGpsMsg(e.message||"GPS取得に失敗しました");
+    }
+  },[locList,pickerFor]);
+
+  const jitsu=useMemo(()=>calcJitsu(fp,fd),[fp,fd]);
+
+  /* ── フォームリセット ── */
+  const resetTripForm=(t=null)=>{
+    setEditId(t?t.id:null);
+    setFormDate(t?t.date:getShiftDate());
+    setFp(t?t.pTime:""); setFd(t?t.dTime:"");
+    setFpWard(t?t.pWard:""); setFpArea(t?t.pArea:"");
+    setFpLat(t?t.pLat:null); setFpLng(t?t.pLng:null);
+    setFdWard(t?t.dWard:""); setFdArea(t?t.dArea:"");
+    setFdLat(t?t.dLat:null); setFdLng(t?t.dLng:null);
+    setFare(t?String(t.fare):"");
+    /* 新規作成時は車種に応じた初期値（PRE:プレタク系 / それ以外:従来）。編集時は保存値 */
+    if(t){
+      setPay(t.pay); setAcc(t.acc); setStat(t.stat); setSankyu(t.sankyu);
+    }else if(activeTaxi==="PRE"){
+      setPay("GO Pay"); setAcc("プレタク"); setStat("GO"); setSankyu("プレタク");
+    }else if(activeTaxi==="JAP"){
+      /* ジャパタクは支払方法を強制選択（選びミス防止）→デフォルト未選択 */
+      setPay(""); setAcc("専用"); setStat("GO"); setSankyu("通常");
+    }else{
+      setPay("GO Pay"); setAcc("専用"); setStat("GO"); setSankyu("通常");
+    }
+    setKotei(t?t.kotei:"N"); setYuusen(t?t.yuusen:false);
+    setEasternName(t?t.easternName||"":"");
+    setKoteiMemo(t?t.koteiMemo||"":"");
+    setMemo(t?t.memo||"":"");
+    setCustType(t?( Array.isArray(t.custType)?t.custType:(t.custType&&t.custType!=="日本人"?[t.custType]:[]) ):[]);
+  };
+  const resetKuutenForm=()=>{
+    setKType("A");setKTime("");
+    setKWard("");setKArea("");setKLat(null);setKLng(null);
+    setKFare("500");setKMemo("");
+  };
+
+  /* ── 保存 ── */
+  const saveTrip=async()=>{
+    if(!fare||!fp||!fd||!fpWard||!fdWard)return;
+    if(!pay){alert("支払方法を選択してください");return;}
+    const isEdit=!!editId;
+    const origTrip=isEdit?trips.find(t=>t.id===editId):null;
+    const origSynced=origTrip?.synced||false;
+    const trip={
+      id:editId||Date.now(), date:formDate, dow:getDow(formDate),
+      pTime:fp, dTime:fd, jitsu,
+      pWard:fpWard, pArea:fpArea, pLat:fpLat, pLng:fpLng,
+      dWard:fdWard, dArea:fdArea, dLat:fdLat, dLng:fdLng,
+      fare:parseInt(fare.replace(/[^0-9]/g,""))||0,
+      pay, acc, stat, sankyu, kotei, yuusen,
+      easternName:pay==="イースタン"?easternName:"",
+      koteiMemo:kotei!=="N"?koteiMemo:"",
+      memo, custType, synced:origSynced,
+      needsFix:origTrip?.needsFix||false,
+      fixNote:origTrip?.fixNote||"",
+    };
+
+    /* 編集時：変更箇所を自動検出して修正履歴をメモに追記 */
+    if(isEdit&&origTrip){
+      const chg=[];
+      const fmtLoc=(w,a)=>w?(w+(a||"")):"—";
+      if(origTrip.fare!==trip.fare)
+        chg.push(`料金: ${fmtFare(origTrip.fare)} → ${fmtFare(trip.fare)}`);
+      if(origTrip.pTime!==trip.pTime)
+        chg.push(`乗車時間: ${origTrip.pTime} → ${trip.pTime}`);
+      if(origTrip.dTime!==trip.dTime)
+        chg.push(`降車時間: ${origTrip.dTime} → ${trip.dTime}`);
+      if(origTrip.pWard!==trip.pWard||origTrip.pArea!==trip.pArea)
+        chg.push(`乗車地: ${fmtLoc(origTrip.pWard,origTrip.pArea)} → ${fmtLoc(trip.pWard,trip.pArea)}`);
+      if(origTrip.dWard!==trip.dWard||origTrip.dArea!==trip.dArea)
+        chg.push(`降車地: ${fmtLoc(origTrip.dWard,origTrip.dArea)} → ${fmtLoc(trip.dWard,trip.dArea)}`);
+      if(origTrip.pay!==trip.pay)
+        chg.push(`支払: ${origTrip.pay} → ${trip.pay}`);
+      if(origTrip.acc!==trip.acc)
+        chg.push(`アカウント: ${origTrip.acc} → ${trip.acc}`);
+      if(origTrip.stat!==trip.stat)
+        chg.push(`ステータス: ${origTrip.stat} → ${trip.stat}`);
+      if(origTrip.sankyu!==trip.sankyu)
+        chg.push(`サンキュー: ${origTrip.sankyu} → ${trip.sankyu}`);
+      if(origTrip.kotei!==trip.kotei)
+        chg.push(`固定: ${origTrip.kotei} → ${trip.kotei}`);
+      if((origTrip.yuusen||false)!==(trip.yuusen||false))
+        chg.push(`優先パス: ${origTrip.yuusen?"ON":"OFF"} → ${trip.yuusen?"ON":"OFF"}`);
+
+      if(chg.length>0){
+        const entry=`[${getShiftNow()}] ${chg.join(" / ")}`;
+        trip.fixNote=(trip.fixNote?trip.fixNote+"\n":"")+entry;
+        trip.needsFix=true; /* 変更があれば自動フラグ */
+      }
+    }
+
+    /* 新規のみGoogleフォームに送信。編集はローカル更新のみ */
+    if(FORM_ID&&!isEdit){
+      setSending(true);
+      const ok=await submitToForm(trip);
+      trip.synced=ok;
+      setSendResult(ok?"ok":"err");
+      setTimeout(()=>setSendResult(null),3000);
+      setSending(false);
+    }
+    setTrips(ts=>isEdit?ts.map(t=>t.id===editId?trip:t):[...ts,trip]);
+    clearDraft();
+    setScreen("log");
+  };
+
+  const saveKuuten=async()=>{    const k={
+      id:Date.now(), date:getShiftDate(),
+      kType, time:kTime, ward:kWard, area:kArea,
+      lat:kLat, lng:kLng,
+      fare:parseInt(kFare)||0, memo:kMemo,
+      synced:false,
+    };
+    const ok=await submitKuutenToForm(k);
+    k.synced=ok;
+    setKuutens(ks=>[...ks,k]);
+    resetKuutenForm(); setScreen("log");
+  };
+
+  /* ── 休憩開始 ── */
+  const [breakLat,setBreakLat]=useState(null);
+  const [breakLng,setBreakLng]=useState(null);
+  /* watchPositionで常時最新座標をキャッシュ */
+  const cachedPos=useRef(null);
+  useEffect(()=>{
+    if(!navigator.geolocation)return;
+    const id=navigator.geolocation.watchPosition(
+      p=>{cachedPos.current={lat:p.coords.latitude,lng:p.coords.longitude};},
+      ()=>{},
+      {enableHighAccuracy:false,maximumAge:30000,timeout:15000}
+    );
+    return()=>navigator.geolocation.clearWatch(id);
+  },[]);
+
+  const startBreak=()=>{
+    const now=getShiftNow();
+    const ts=Date.now();
+    setBreakStart(now); setBreakStartTs(ts); setElapsed(0);
+    localStorage.setItem("eimu_B_break_start",now);
+    localStorage.setItem("eimu_B_break_ts",String(ts));
+    /* GPSはwatchPositionが休憩中ずっとcachedPosを更新し続ける。
+       タイマーは上で即開始済み。GPSはタイマーに一切影響しない。
+       開始時点でキャッシュがあれば暫定セット、無くても休憩中に拾えればOK */
+    if(cachedPos.current){setBreakLat(cachedPos.current.lat);setBreakLng(cachedPos.current.lng);}
+    else{setBreakLat(null);setBreakLng(null);}
+  };
+
+  /* ── 休憩終了 ── */
+  const endBreak=async()=>{
+    if(!breakStart)return;
+    const endTime=getShiftNow();
+    const toM=t=>{const[h,m]=t.split(":").map(Number);return h*60+m;};
+    let diff=toM(endTime)-toM(breakStart);
+    if(diff<0)diff+=24*60;
+    const minutes=Math.round(diff);
+    /* 休憩中は場所が動かない。終了時点のキャッシュ最新座標を採用（開始時に
+       取れなくても休憩中に一度でも拾えていればここで入る）。無ければ開始時の値 */
+    const finalLat=cachedPos.current?cachedPos.current.lat:breakLat;
+    const finalLng=cachedPos.current?cachedPos.current.lng:breakLng;
+    const rec={id:Date.now(),date:getShiftDate(),startTime:breakStart,endTime,minutes,
+               lat:finalLat!=null?String(finalLat.toFixed(6)):"",
+               lng:finalLng!=null?String(finalLng.toFixed(6)):"",memo:"",synced:false};
+    const now=Date.now();setLastRestEnd(now);try{localStorage.setItem("eimu_B_last_rest_end",now);}catch{}
+    const ok=await submitBreakToForm(rec);
+    rec.synced=ok;
+    setBreaks(bs=>[...bs,rec]);
+    setBreakStart(null); setBreakStartTs(null); setElapsed(0);
+    setBreakLat(null); setBreakLng(null);
+    localStorage.removeItem("eimu_B_break_start");
+    localStorage.removeItem("eimu_B_break_ts");
+  };
+
+  /* ── 休憩手動保存 ── */
+  const saveManualBreak=async()=>{
+    if(!manualBS||!manualBE)return;
+    const toM=t=>{const[h,m]=t.split(":").map(Number);return h*60+m;};
+    let diff=toM(manualBE)-toM(manualBS);
+    if(diff<0)diff+=24*60;
+    const minutes=Math.round(diff);
+    if(minutes<=0)return;
+    const rec={id:Date.now(),date:getShiftDate(),startTime:manualBS,endTime:manualBE,minutes,memo:"（手動入力）",synced:false};
+    const ok=await submitBreakToForm(rec);
+    rec.synced=ok;
+    setBreaks(bs=>[...bs,rec]);
+    setManualBS(""); setManualBE("");
+    setScreen("log");
+  };
+
+  /* ── 下書き復元 ── */
+  const restoreDraft=()=>{
+    try{
+      const d=JSON.parse(localStorage.getItem("eimu_B_form_draft")||"{}");
+      setEditId(d.editId||null);
+      setFormDate(d.formDate||getShiftDate());
+      setFp(d.fp||""); setFd(d.fd||"");
+      setFpWard(d.fpWard||""); setFpArea(d.fpArea||"");
+      setFpLat(d.fpLat||null); setFpLng(d.fpLng||null);
+      setFdWard(d.fdWard||""); setFdArea(d.fdArea||"");
+      setFdLat(d.fdLat||null); setFdLng(d.fdLng||null);
+      setFare(d.fare||""); setPay(d.pay||"GO Pay");
+      setAcc(d.acc||"専用"); setStat(d.stat||"GO");
+      setSankyu(d.sankyu||"通常"); setKotei(d.kotei||"N");
+      setYuusen(d.yuusen||false);
+      setEasternName(d.easternName||""); setKoteiMemo(d.koteiMemo||""); setMemo(d.memo||"");
+      setCustType(Array.isArray(d.custType)?d.custType:[]);
+      setScreen("form");
+    }catch{}
+  };
+  const clearDraft=()=>{
+    localStorage.removeItem("eimu_B_form_draft");
+    setHasDraft(false);
+  };
+
+  /* ── 出勤記録を保存 ── */
+  const saveShukkin=()=>{
+    try{localStorage.setItem(NIPPOU_START_KEY,JSON.stringify(shukkinForm));}catch{}
+    setScreen("log");
+  };
+
+  /* ── 乗車時刻・現在地を一括取得 ── */
+  const capturePickup=async()=>{
+    setFp(getShiftNow());
+    setFpCapturing(true);
+    try{
+      const{lat,lng}=await getGPS();
+      const nearest=findNearest(lat,lng,locList.filter(l=>l.lat));
+      if(nearest){setFpWard(nearest.ward);setFpArea(nearest.area);setFpLat(lat);setFpLng(lng);}
+    }catch{}
+    finally{setFpCapturing(false);}
+  };
+
+  /* ── 降車時刻・現在地を一括取得 ── */
+  const captureDropoff=async()=>{
+    setFd(getShiftNow());
+    setFdCapturing(true);
+    try{
+      const{lat,lng}=await getGPS();
+      const nearest=findNearest(lat,lng,locList.filter(l=>l.lat));
+      if(nearest){setFdWard(nearest.ward);setFdArea(nearest.area);setFdLat(lat);setFdLng(lng);}
+    }catch{}
+    finally{setFdCapturing(false);}
+  };
+
+  /* ── 空転時刻・現在地を一括取得（乗車降車と同構造）── */
+  const captureKuuten=async()=>{
+    setKTime(getShiftNow());
+    setKCapturing(true);
+    try{
+      const{lat,lng}=await getGPS();
+      const nearest=findNearest(lat,lng,locList.filter(l=>l.lat));
+      if(nearest){setKWard(nearest.ward);setKArea(nearest.area);setKLat(lat);setKLng(lng);}
+    }catch{}
+    finally{setKCapturing(false);}
+  };
+
+  /* ── シフトメモ自動保存 ── */
+  useEffect(()=>{window.scrollTo(0,0);},[screen]);
+
+  /* 連続稼働タイマー */
+  useEffect(()=>{
+    if(breakStart){setContiguousSec(0);return;}
+    if(!lastRestEnd)return;
+    const iv=setInterval(()=>setContiguousSec(Math.floor((Date.now()-lastRestEnd)/1000)),1000);
+    return()=>clearInterval(iv);
+  },[lastRestEnd,breakStart]);
+
+  const insertTime=()=>{
+    const ts=`[${getShiftNow()}] `;
+    setShiftMemo(m=>m+(m&&!m.endsWith("\n")?"\n":"")+ts);
+  };
+  const saveRank02=(val)=>{
+    const updated={...shukkinForm,rank02:val};
+    setShukkinForm(updated);
+    setNippouForm(f=>({...f,rank02:val}));
+    try{localStorage.setItem(NIPPOU_START_KEY,JSON.stringify(updated));}catch{}
+    setShowRank02(false);
+  };
+
+  /* 日報スキャン機能は廃止（手入力運用に一本化）*/
+
+  const saveNippou=async()=>{
+    const f=nippouForm;
+    const v=x=>(x===undefined||x===null||x==="")?"—":x;
+    const taxiLbl=f.taxi==="JAP"?"JPN TAXI":(f.taxi==="PRE"?"プレタク(Alfa/Alphard)":v(f.taxi));
+    const msg=
+      "この内容で送信しますか？\n"+
+      "──────────────\n"+
+      "日付　　："+v(f.date)+(f.dow?"（"+f.dow+"）":"")+"\n"+
+      "出勤時刻："+v(f.shukkin)+"\n"+
+      "退社時刻："+v(f.taisha)+"\n"+
+      "出番　　："+v(f.deban)+"\n"+
+      "TAXI種別："+taxiLbl+"\n"+
+      "黒タク区分："+v(f.kurotaku)+"\n"+
+      "無線番号："+v(f.musen)+"\n"+
+      "RANK01　："+v(f.rank01)+"\n"+
+      "RANK02　："+v(f.rank02)+"\n"+
+      "──────────────\n"+
+      "納金額　："+v(f.nokin)+"\n"+
+      "営収　　："+v(f.eishu)+"\n"+
+      "回数　　："+v(f.kaisu)+"\n"+
+      "ハンドル："+v(f.handle)+"\n"+
+      "休憩　　："+v(f.kyukei)+"\n"+
+      "勤務　　："+v(f.kinmu)+"\n"+
+      "全走行　："+v(f.zensokou)+"\n"+
+      "実車走　："+v(f.jissha);
+    if(!confirm(msg))return;
+    setNippouSending(true);
+    const ok=await submitNippouToForm(nippouForm);
+    setNippouSending(false);
+    if(ok){
+      /* 日報欄をリセット（次回入力用）、出勤情報は保持 */
+      setNippouForm(f=>({...f,nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",kinmu:"",zensokou:"",jissha:"",taisha:"",date:""}));
+      setScreen("log");
+    }
+    else alert("送信に失敗しました");
+  };
+
+  /* ── CSV エクスポート ── */
+  const doExport=()=>{
+    const h="日付,曜日,乗車時間,降車時間,実車時間,乗車地：市区,乗車地：地名,乗車地：緯度,乗車地：経度,降車地：市区,降車地：地名,降車地：緯度,降車地：経度,料金,アカウント,ステータス,支払,サンキュー,固定客,優先パス,イースタン氏名,固定客メモ,メモ";
+    const rows=trips.map(t=>[
+      t.date,t.dow,t.pTime,t.dTime,t.jitsu,
+      t.pWard,t.pArea,t.pLat||"",t.pLng||"",
+      t.dWard,t.dArea,t.dLat||"",t.dLng||"",
+      fmtFare(t.fare),t.acc,t.stat,t.pay,t.sankyu,t.kotei,
+      t.yuusen?"優":"",t.easternName||"",t.koteiMemo||"",t.memo||""
+    ].join(",")).join("\n");
+    let out=h+"\n"+rows;
+    if(kuutens.length>0){
+      out+="\n\n--- 空転記録 ---\n日付,種別,時刻,市区,地名,緯度,経度,金額,メモ\n";
+      out+=kuutens.map(k=>[
+        k.date,k.kType==="A"?"迎車キャンセル":"メーター空転",
+        k.time,k.ward,k.area,k.lat||"",k.lng||"",fmtFare(k.fare),k.memo||""
+      ].join(",")).join("\n");
+    }
+    navigator.clipboard.writeText(out)
+      .then(()=>{setCopied(true);setTimeout(()=>setCopied(false),3000);})
+      .catch(()=>alert("コピーに失敗しました"));
+  };
+
+  const total=trips.reduce((s,t)=>s+t.fare,0);
+
+  /* 12 時間帯別目標（曜日別・8段階／あくまで目安）
+     index: 0=日 1=月 2=火 3=水 4=木 5=金 6=土（JS getDay 準拠）
+     minF=売上目標(下限) maxF=上限(表示用) trips=回数目安 */
+  const BENCHMARKS_BY_DOW={
+    /* 日：最も低い日（19-21時が弱点／深夜に詰める想定） */
+    0:[{hour:12,minF:17000,maxF:24000,trips:8},{hour:14,minF:26000,maxF:35000,trips:12},{hour:16,minF:36000,maxF:48000,trips:17},{hour:18,minF:47000,maxF:60000,trips:23},{hour:20,minF:56000,maxF:72000,trips:27},{hour:22,minF:74000,maxF:92000,trips:32},{hour:24,minF:86000,maxF:104000,trips:36},{hour:26,minF:96000,maxF:115000,trips:38}],
+    /* 月：平日で最も低い。前半弱→23時・2時の粘りで後半勝負（30時以降は火水を一度抜く） */
+    1:[{hour:12,minF:18000,maxF:25000,trips:9},{hour:14,minF:28000,maxF:37000,trips:13},{hour:16,minF:37000,maxF:50000,trips:18},{hour:18,minF:48000,maxF:62000,trips:24},{hour:20,minF:58000,maxF:75000,trips:28},{hour:22,minF:78000,maxF:98000,trips:34},{hour:24,minF:92000,maxF:112000,trips:39},{hour:26,minF:102000,maxF:122000,trips:40}],
+    /* 火：平均（基準） */
+    2:[{hour:12,minF:20000,maxF:28000,trips:10},{hour:14,minF:30000,maxF:40000,trips:15},{hour:16,minF:40000,maxF:54000,trips:20},{hour:18,minF:50000,maxF:65000,trips:25},{hour:20,minF:60000,maxF:78000,trips:30},{hour:22,minF:80000,maxF:100000,trips:35},{hour:24,minF:92000,maxF:112000,trips:39},{hour:26,minF:102000,maxF:122000,trips:40}],
+    /* 水：平均（基準・火と同じ） */
+    3:[{hour:12,minF:20000,maxF:28000,trips:10},{hour:14,minF:30000,maxF:40000,trips:15},{hour:16,minF:40000,maxF:54000,trips:20},{hour:18,minF:50000,maxF:65000,trips:25},{hour:20,minF:60000,maxF:78000,trips:30},{hour:22,minF:80000,maxF:100000,trips:35},{hour:24,minF:92000,maxF:112000,trips:39},{hour:26,minF:102000,maxF:122000,trips:40}],
+    /* 木：プチ金曜日（基準の約1.05〜1.07倍） */
+    4:[{hour:12,minF:21000,maxF:29000,trips:10},{hour:14,minF:32000,maxF:42000,trips:15},{hour:16,minF:43000,maxF:57000,trips:21},{hour:18,minF:54000,maxF:70000,trips:26},{hour:20,minF:65000,maxF:84000,trips:31},{hour:22,minF:86000,maxF:106000,trips:37},{hour:24,minF:98000,maxF:118000,trips:41},{hour:26,minF:108000,maxF:130000,trips:42}],
+    /* 金：最も高い。目安は高め（戦略切替＝ロング優先は現場判断） */
+    5:[{hour:12,minF:22000,maxF:30000,trips:11},{hour:14,minF:34000,maxF:45000,trips:16},{hour:16,minF:46000,maxF:60000,trips:22},{hour:18,minF:58000,maxF:74000,trips:28},{hour:20,minF:70000,maxF:90000,trips:33},{hour:22,minF:90000,maxF:110000,trips:38},{hour:24,minF:102000,maxF:122000,trips:42},{hour:26,minF:114000,maxF:135000,trips:44}],
+    /* 土：休日版プチ金。序中盤は木と同等、終盤(32-34)で伸ばす */
+    6:[{hour:12,minF:21000,maxF:29000,trips:10},{hour:14,minF:32000,maxF:42000,trips:15},{hour:16,minF:43000,maxF:57000,trips:21},{hour:18,minF:55000,maxF:71000,trips:26},{hour:20,minF:66000,maxF:85000,trips:31},{hour:22,minF:84000,maxF:104000,trips:36},{hour:24,minF:98000,maxF:118000,trips:40},{hour:26,minF:110000,maxF:132000,trips:42}],
+  };
+  /* シフト日の曜日でテーブルを選ぶ（乗車記録があればその日付を優先）
+     ※ローカル時刻コンストラクタで曜日算出（new Date('YYYY-MM-DD')のUTCずれ回避）*/
+  const getBenchmarks=()=>{
+    const ds=(trips.length>0&&trips[0].date)?trips[0].date:getShiftDate();
+    const m=ds&&ds.match(/(\d+)\/(\d+)\/(\d+)/);
+    const dow=m?new Date(+m[1],+m[2]-1,+m[3]).getDay():2; /* 不明時は火(基準) */
+    return BENCHMARKS_BY_DOW[dow]||BENCHMARKS_BY_DOW[2];
+  };
+  const BENCHMARKS=getBenchmarks();
+  const kuutenTotal=kuutens.reduce((s,k)=>s+k.fare,0);
+  const unsyncedCount=FORM_ID?trips.filter(t=>!t.synced).length:0;
+  const [showFixOnly,setShowFixOnly]=useState(false);
+  const fixCount=trips.filter(t=>t.needsFix).length+kuutens.filter(k=>k.needsFix).length;
+  /* フラグが全件オフになったら自動的に絞り込み解除 */
+  const effectiveFix=showFixOnly&&fixCount>0;
+  const displayTrips=effectiveFix?trips.filter(t=>t.needsFix).slice().reverse():trips.slice().reverse();
+  const displayKuutens=effectiveFix?kuutens.filter(k=>k.needsFix).slice().reverse():kuutens.slice().reverse();
+  const totalBreakMins=breaks.reduce((s,b)=>s+b.minutes,0);
+  const formatElapsed=s=>`${Math.floor(s/60)}:${pad2(s%60)}`;
+
+  /* ── 納金集計（現金を先頭・残りは金額降順）── */
+  const nokinData=useMemo(()=>{
+    const map={};
+    trips.forEach(t=>{
+      const p=t.pay||"その他";
+      if(!map[p])map[p]={count:0,total:0};
+      map[p].count++; map[p].total+=t.fare;
+    });
+    return Object.entries(map).sort(([a],[b])=>{
+      if(a==="現金")return -1; if(b==="現金")return 1;
+      return map[b].total-map[a].total;
+    });
+  },[trips]);
+
+  /* フラグ操作ヘルパー */
+  const toggleFix=id=>setTrips(ts=>ts.map(t=>t.id===id?{...t,needsFix:!t.needsFix,fixNote:t.needsFix?"":t.fixNote||""}:t));
+  const setFixNote=(id,note)=>setTrips(ts=>ts.map(t=>t.id===id?{...t,fixNote:note}:t));
+  const toggleKFix=id=>setKuutens(ks=>ks.map(k=>k.id===id?{...k,needsFix:!k.needsFix,fixNote:k.needsFix?"":k.fixNote||""}:k));
+  const setKFixNote=(id,note)=>setKuutens(ks=>ks.map(k=>k.id===id?{...k,fixNote:note}:k));
+
+  /* ════════════════════════════════
+     納金集計画面
+  ════════════════════════════════ */
+  if(screen==="nokin"){
+
+    const CARD_PAYS  =new Set(["GO Pay","QRコード","クレジット","IC"]);
+    const MISHU_PAYS =new Set(["チケット","イースタン","福祉券","商品券","その他"]);
+
+    const grouped={cash:{total:0,count:0,items:{}},card:{total:0,count:0,items:{}},mishu:{total:0,count:0,items:{}}};
+    trips.forEach(t=>{
+      const p=t.pay||"現金";
+      const grp=CARD_PAYS.has(p)?"card":MISHU_PAYS.has(p)?"mishu":"cash";
+      grouped[grp].total+=t.fare; grouped[grp].count++;
+      if(!grouped[grp].items[p])grouped[grp].items[p]={total:0,count:0};
+      grouped[grp].items[p].total+=t.fare; grouped[grp].items[p].count++;
+    });
+
+    const kosokuAmt=parseInt(kosouku)||0;
+    const cashTotal=grouped.cash.total+kosokuAmt;
+    const grandTotal=cashTotal+grouped.mishu.total+grouped.card.total+kuutenTotal;
+
+    const copyNokin=()=>{
+      const date=trips[0]?.date||getShiftDate();
+      let txt=`【納金機入力用】${date}\n`;
+      txt+=`${"─".repeat(26)}\n`;
+      txt+=`① 現金　　　¥${cashTotal.toLocaleString()}　${grouped.cash.count}件\n`;
+      if(kosokuAmt>0)txt+=`   (売上¥${grouped.cash.total.toLocaleString()} + 高速代¥${kosokuAmt.toLocaleString()})\n`;
+      txt+=`② 未収　　　¥${grouped.mishu.total.toLocaleString()}　${grouped.mishu.count}件\n`;
+      Object.entries(grouped.mishu.items).forEach(([p,{total:t,count:c}])=>{ txt+=`   ${p}　${c}件　¥${t.toLocaleString()}\n`; });
+      txt+=`③ カード　　¥${grouped.card.total.toLocaleString()}　${grouped.card.count}件\n`;
+      Object.entries(grouped.card.items).forEach(([p,{total:t,count:c}])=>{ txt+=`   ${p}　${c}件　¥${t.toLocaleString()}\n`; });
+      txt+=`④ マイナス　¥${kuutenTotal.toLocaleString()}　${kuutens.length}件\n`;
+      txt+=`${"─".repeat(26)}\n`;
+      txt+=`合計　¥${grandTotal.toLocaleString()}\n`;
+      navigator.clipboard.writeText(txt)
+        .then(()=>{setNokinCopied(true);setTimeout(()=>setNokinCopied(false),3000);})
+        .catch(()=>alert("コピーに失敗しました"));
+    };
+
+    return(
+      <div style={S.wrap}>
+        <div style={{...S.hdr,gap:10}}>
+          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
+          <div>
+            <p style={{fontSize:16,fontWeight:500,margin:0}}>納金機入力用</p>
+            <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>{trips[0]?.date||getShiftDate()} — {trips.length}件</p>
+          </div>
+          <button onClick={copyNokin} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 12px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--txt)"}}>
+            <i className="ti ti-copy"/>{nokinCopied?"コピー済 ✓":"コピー"}
+          </button>
+        </div>
+
+        <div style={S.body}>
+          <Section
+            num="①" label="現金" color="var(--ok)"
+            amount={cashTotal} count={grouped.cash.count}
+            items={grouped.cash.items}
+            extra={
+              <div style={{marginTop:8}}>
+                <p style={{fontSize:11,color:"var(--txt3)",margin:"0 0 4px"}}>
+                  高速代（自腹・任意）
+                </p>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <span style={{fontSize:13,color:"var(--txt2)"}}>
+                    売上 ¥{grouped.cash.total.toLocaleString()} +
+                  </span>
+                  <KosoukuInput key="kosouku-input" initial={kosouku} onCommit={setKosouku} />
+                  <span style={{fontSize:13,color:"var(--txt2)"}}>円</span>
+                </div>
+              </div>
+            }
+          />
+
+          <Section
+            num="②" label="未収" sub="（チケット等）" color="var(--warn)"
+            amount={grouped.mishu.total} count={grouped.mishu.count}
+            items={grouped.mishu.items}
+          />
+
+          <Section
+            num="③" label="カード" sub="（GO Pay / QR / クレジット / IC）" color="var(--info)"
+            amount={grouped.card.total} count={grouped.card.count}
+            items={grouped.card.items}
+          />
+
+          <Section
+            num="④" label="マイナス納金" sub="（空転）" color="var(--err)"
+            amount={-kuutenTotal} count={kuutenTotal>0?kuutens.length:null}
+            items={{}}
+          />
+
+          {/* 合計 */}
+          <div style={{...S.card,marginTop:4,background:"var(--bg2)",borderWidth:"1.5px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <span style={{fontSize:13,color:"var(--txt2)"}}>①＋②＋③＋④　合計</span>
+              <span style={{fontSize:26,fontWeight:500,fontFamily:"var(--mono)"}}>
+                ¥{grandTotal.toLocaleString()}
+              </span>
+            </div>
+            <p style={{fontSize:11,color:"var(--txt3)",margin:0}}>
+              納金機の表示と一致すれば完了
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+
+
+  /* ════════════════════════════════
+     出勤・日報 統合入力画面
+  ════════════════════════════════ */
+  if(screen==="nippou_scan"){
+    const canSend=nippouForm.date&&nippouForm.nokin&&!nippouSending;
+    const saveTemp=()=>{
+      const d={shukkin:nippouForm.shukkin,musen:nippouForm.musen,taxi:nippouForm.taxi,
+               kurotaku:nippouForm.kurotaku,deban:nippouForm.deban,rank01:nippouForm.rank01,
+               rank02:nippouForm.rank02,taxiSetDate:getShiftDate()};
+      setShukkinForm(s=>({...s,...d}));
+      try{localStorage.setItem(NIPPOU_START_KEY,JSON.stringify({...shukkinForm,...d}));}catch{}
+      alert("出勤情報を一時保存しました");
+    };
+    return(
+      <div style={S.wrap}>
+        <div style={{...S.hdr,gap:10}}>
+          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
+          <div>
+            <p style={{fontSize:16,fontWeight:500,margin:0}}>出勤・日報入力</p>
+            <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>出勤時に上段→一時保存　帰庫後に下段→送信</p>
+          </div>
+        </div>
+        <div style={S.body}>
+
+          {/* 日付カード（単独）*/}
+          <div style={{...S.card,display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+            <span style={{fontSize:12,color:"var(--txt3)",flexShrink:0}}>日付</span>
+            <input type="text" value={nippouForm.date}
+              onChange={e=>{
+                const v=e.target.value;
+                setNF("date",v);
+                const m=v.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+                if(m){const dow=["日","月","火","水","木","金","土"][new Date(+m[1],+m[2]-1,+m[3]).getDay()];setNF("dow",dow);}
+              }}
+              placeholder="2026/06/07"
+              style={{...S.inp,width:130,fontFamily:"var(--mono)"}}/>
+            <button onClick={()=>setNF("date",getShiftDate())} style={{
+              padding:"6px 10px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",
+              borderRadius:"var(--r)",fontSize:12,cursor:"pointer",color:"var(--txt3)",flexShrink:0
+            }}>今日</button>
+          </div>
+
+          {/* ① 出勤時に入力 */}
+          <div style={S.card}>
+            <p style={{fontSize:11,color:"var(--ok)",fontWeight:600,margin:"0 0 10px"}}>
+              ① 出勤時に入力
+            </p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+              <div>
+                <label style={S.lbl}>出勤時刻</label>
+                <div style={{display:"flex",gap:6}}>
+                  <input type="tel" value={nippouForm.shukkin}
+                    onChange={e=>setNF("shukkin",fmtTimeInput(e.target.value))}
+                    placeholder="15:55"
+                    style={{...S.inp,flex:1,fontFamily:"var(--mono)",textAlign:"center"}}/>
+                  <button onClick={()=>setNF("shukkin",getShiftNow())} style={{
+                    padding:"0 8px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",
+                    borderRadius:"var(--r)",fontSize:11,cursor:"pointer",color:"var(--txt3)"
+                  }}>今</button>
+                </div>
+              </div>
+              <div>
+                <label style={S.lbl}>無線番号</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" value={nippouForm.musen}
+                  onChange={e=>setNF("musen",e.target.value)}
+                  style={{...S.inp,fontFamily:"var(--mono)"}}/>
+              </div>
+              <div>
+                <label style={S.lbl}>RANK01</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" value={nippouForm.rank01}
+                  onChange={e=>setNF("rank01",e.target.value)}
+                  style={S.inp}/>
+              </div>
+              <div>
+                <label style={S.lbl}>RANK02（28時頃）</label>
+                <input type="tel" inputMode="numeric" pattern="[0-9]*" value={nippouForm.rank02}
+                  onChange={e=>setNF("rank02",e.target.value)}
+                  style={S.inp}/>
+              </div>
+              <div>
+                <label style={S.lbl}>出番</label>
+                <input type="text" value={nippouForm.deban}
+                  onChange={e=>setNF("deban",e.target.value)}
+                  style={{...S.inp,width:60}}/>
+              </div>
+            </div>
+            <label style={S.lbl}>TAXI種別</label>
+            <div style={{display:"flex",gap:8,marginBottom:10}}>
+              {["JAP","PRE"].map(t=>(
+                <button key={t} onClick={()=>setNF("taxi",t)} style={{
+                  flex:1,padding:"9px",borderRadius:"var(--r)",cursor:"pointer",fontSize:14,
+                  border:`0.5px solid ${nippouForm.taxi===t?"var(--info-bd)":"var(--bdr)"}`,
+                  background:nippouForm.taxi===t?"var(--info-bg)":"var(--bg)",
+                  color:nippouForm.taxi===t?"var(--info)":"var(--txt2)",fontWeight:nippouForm.taxi===t?500:400,
+                }}>{t}</button>
+              ))}
+            </div>
+            <label style={S.lbl}>黒タク区分</label>
+            <div style={{display:"flex",gap:8,marginBottom:12}}>
+              {["黒","青","P"].map(t=>(
+                <button key={t} onClick={()=>setNF("kurotaku",t)} style={{
+                  flex:1,padding:"9px",borderRadius:"var(--r)",cursor:"pointer",fontSize:14,
+                  border:`0.5px solid ${nippouForm.kurotaku===t?"var(--warn-bd)":"var(--bdr)"}`,
+                  background:nippouForm.kurotaku===t?"var(--warn-bg)":"var(--bg)",
+                  color:nippouForm.kurotaku===t?"var(--warn)":"var(--txt2)",fontWeight:nippouForm.kurotaku===t?500:400,
+                }}>{t}</button>
+              ))}
+            </div>
+            <button onClick={saveTemp} style={{
+              width:"100%",padding:"11px",background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
+              borderRadius:"var(--r)",fontSize:14,fontWeight:500,cursor:"pointer",color:"var(--ok)"
+            }}>
+              💾 一時保存（出勤時）
+            </button>
+          </div>
+
+          {/* ② 帰庫後・日報から入力 */}
+          <div style={S.card}>
+            <p style={{fontSize:11,color:"var(--info)",fontWeight:600,margin:"0 0 10px"}}>
+              ② 帰庫後・日報から入力
+            </p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+              {[
+                {l:"納金額（円）",f:"nokin",mode:"tel"},
+                {l:"営収（円）",f:"eishu",mode:"tel"},
+                {l:"回数",f:"kaisu",mode:"tel",span:2},
+                {l:"ハンドル時間",f:"handle",mode:"tel",ph:"17:36",fmt:"time"},
+                {l:"休憩時間",f:"kyukei",mode:"tel",ph:"2:40",fmt:"time"},
+                {l:"勤務",f:"kinmu",mode:"tel",ph:"20:16",fmt:"time",span:2},
+                {l:"全走行距離(km)",f:"zensokou",mode:"tel"},
+                {l:"実車走行距離(km)",f:"jissha",mode:"tel"},
+              ].map(({l,f,mode,ph,fmt,span})=>(
+                <div key={f} style={span?{gridColumn:"1 / -1"}:{}}>
+                  <label style={{fontSize:10,color:"var(--txt3)",display:"block",marginBottom:2}}>{l}</label>
+                  <input type={mode} inputMode={mode==="tel"?"numeric":"text"}
+                    {...(mode==="tel"?{pattern:"[0-9]*"}:{})}
+                    value={nippouForm[f]}
+                    onChange={e=>setNF(f, fmt==="time"?(f==="kyukei"?fmtKyukeiInput(e.target.value):fmtTimeInput(e.target.value)):e.target.value)}
+                    placeholder={ph||""}
+                    style={{...S.inp,fontSize:15,padding:"8px",fontFamily:fmt==="time"?"var(--mono)":"inherit",width:span?"50%":"100%"}}/>
+                </div>
+              ))}
+              {/* 退社時刻：フォーマット＋今の時刻ボタン */}
+              <div style={{gridColumn:"1 / -1"}}>
+                <label style={{fontSize:10,color:"var(--txt3)",display:"block",marginBottom:2}}>退社時刻</label>
+                <div style={{display:"flex",gap:6}}>
+                  <input type="tel" value={nippouForm.taisha}
+                    onChange={e=>setNF("taisha",fmtTimeInput(e.target.value))}
+                    placeholder="36:20"
+                    style={{...S.inp,flex:1,fontFamily:"var(--mono)",textAlign:"center",fontSize:16}}/>
+                  <button onClick={()=>{
+                    const n=new Date();
+                    let h=n.getHours(),min=n.getMinutes();
+                    /* 13時シフト境界：13時より前は前シフト扱いで+24
+                       （12:xx→36:xx、0:00-11:59→24:xx-35:xx、13:00以降はそのまま）*/
+                    if(h<SHIFT_START_HOUR)h+=24;
+                    setNF("taisha",`${h}:${String(min).padStart(2,'0')}`);
+                  }} style={{
+                    padding:"0 12px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",
+                    borderRadius:"var(--r)",fontSize:12,cursor:"pointer",color:"var(--txt3)",flexShrink:0,whiteSpace:"nowrap"
+                  }}>今の時刻</button>
+                </div>
+              </div>
+            </div>
+            <button onClick={saveNippou} disabled={!canSend} style={{
+              width:"100%",padding:14,background:"var(--info-bg)",border:"0.5px solid var(--info-bd)",
+              borderRadius:"var(--r)",fontSize:15,fontWeight:500,
+              cursor:canSend?"pointer":"default",color:"var(--info)",opacity:canSend?1:0.4
+            }}>
+              {nippouSending?"送信中…":"✓ シートに送信"}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ════════════════════════════════
+     休憩手動入力画面
+  ════════════════════════════════ */
+  if(screen==="break_manual"){
+    const toM=t=>{if(!t)return null;const[h,m]=t.split(":").map(Number);return h*60+m;};
+    const pm=toM(manualBS),dm=toM(manualBE);
+    let previewMins=null;
+    if(pm!=null&&dm!=null){let d=dm-pm;if(d<0)d+=24*60;previewMins=Math.round(d);}
+    return(
+      <div style={S.wrap}>
+        <div style={{...S.hdr,gap:10}}>
+          <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
+          <p style={{fontSize:16,fontWeight:500,margin:0,color:"var(--ok)"}}>休憩を手動入力</p>
+        </div>
+        <div style={S.body}>
+          <p style={{fontSize:12,color:"var(--txt3)",margin:"0 0 12px",padding:"8px 12px",background:"var(--bg2)",borderRadius:"var(--r)"}}>
+            押し忘れや画面が閉じた場合など、時刻を直接入力して記録できます
+          </p>
+
+          <div style={S.card}>
+            <label style={S.lbl}>開始時刻（深夜は25:xx形式も可）</label>
+            <TimeRow label="" val={manualBS} set={setManualBS}/>
+          </div>
+
+          <div style={S.card}>
+            <label style={S.lbl}>終了時刻</label>
+            <TimeRow label="" val={manualBE} set={setManualBE}/>
+            {previewMins!=null&&previewMins>0&&(
+              <p style={{fontSize:13,color:"var(--ok)",marginTop:6}}>
+                → {previewMins}分の休憩
+              </p>
+            )}
+          </div>
+
+          <button onClick={saveManualBreak}
+            disabled={!manualBS||!manualBE||previewMins<=0}
+            style={{width:"100%",padding:14,background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",borderRadius:"var(--rl)",fontSize:16,fontWeight:500,cursor:"pointer",color:"var(--ok)",marginTop:4,opacity:(!manualBS||!manualBE||previewMins<=0)?0.4:1}}>
+            保存する
+          </button>
+          <button onClick={()=>setScreen("log")} style={{width:"100%",padding:12,background:"none",border:"none",fontSize:14,cursor:"pointer",color:"var(--txt2)",marginTop:4}}>
+            キャンセル
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ════════════════════════════════
+     住所ピッカー画面
+  ════════════════════════════════ */
+  if(pickerFor) return (
+    <div style={S.wrap}>
+      <div style={{...S.hdr,gap:10}}>
+        <button onClick={()=>setPickerFor(null)} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
+        <span style={{fontSize:15,fontWeight:500}}>
+          {pickerFor==="p"?"乗車地":pickerFor==="d"?"降車地":"空転場所"}を選択
+        </span>
+        <span style={{fontSize:11,color:"var(--txt3)"}}>{locN>0?`${locN.toLocaleString()}件`:locLoad?"読込中…":""}</span>
+      </div>
+
+      {/* GPS ボタン */}
+      <div style={{padding:"10px 12px",background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)"}}>
+        <button onClick={handleGPS} disabled={gpsState==="loading"} style={{
+          width:"100%",padding:"11px",borderRadius:"var(--r)",cursor:"pointer",
+          background:gpsState==="ok"?"var(--ok-bg)":gpsState==="err"?"var(--err-bg)":"var(--info-bg)",
+          border:`0.5px solid ${gpsState==="ok"?"var(--ok-bd)":gpsState==="err"?"var(--err-bd)":"var(--info-bd)"}`,
+          color:gpsState==="ok"?"var(--ok)":gpsState==="err"?"var(--err)":"var(--info)",
+          display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+          fontSize:14,fontWeight:500,
+        }}>
+          <i className={`ti ${gpsState==="loading"?"ti-loader-2":"ti-map-pin"}`}
+             style={{fontSize:16,animation:gpsState==="loading"?"spin 1s linear infinite":""}}/>
+          {gpsState==="idle"&&"現在地を使う（GPS）"}
+          {gpsState==="loading"&&"取得中…"}
+          {gpsState==="ok"&&gpsMsg}
+          {gpsState==="err"&&gpsMsg}
+        </button>
+        {gpsState==="err"&&<p style={{fontSize:11,color:"var(--txt3)",marginTop:4,textAlign:"center"}}>下のリストから手動で選択できます</p>}
+      </div>
+
+      {/* ひらがな・漢字 横断検索ボックス */}
+      <div style={{padding:"8px 12px",background:"var(--bg3)",borderBottom:"0.5px solid var(--bdr)"}}>
+        <input value={areaQ} onChange={e=>{setAreaQ(e.target.value);if(e.target.value)setPickWard("");}}
+          placeholder="ひらがな・漢字で検索（例：あかさか）"
+          style={S.inp}/>
+      </div>
+
+      {/* DB外の場所を直接入力（乗車地・降車地・空転場所すべてで利用可）*/}
+      {(pickerFor==="p"||pickerFor==="d"||pickerFor==="k")&&(
+        <div style={{padding:"10px 12px",background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)"}}>
+          <label style={{fontSize:11,color:"var(--txt3)",display:"block",marginBottom:4}}>
+            区外・DB外の場所を直接入力（例：川崎市幸区戸手・西東京市田無町）
+          </label>
+          <div style={{display:"flex",gap:8}}>
+            <input value={areaQ} onChange={e=>setAreaQ(e.target.value)}
+              placeholder="例：西東京市田無町"
+              style={{...S.inp,flex:1}}
+              onKeyDown={e=>{
+                if(e.key==="Enter"&&areaQ.trim()){
+                  const{ward,area}=parseAddr(areaQ.trim());
+                  pickArea(area||areaQ.trim(), ward);
+                }
+              }}
+            />
+            <button onClick={()=>{
+              if(!areaQ.trim())return;
+              const{ward,area}=parseAddr(areaQ.trim());
+              pickArea(area||areaQ.trim(), ward);
+            }} style={{
+              padding:"0 14px",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",
+              background:"var(--bg2)",color:"var(--txt)",fontSize:13,cursor:"pointer",flexShrink:0
+            }}>決定</button>
+          </div>
+        </div>
+      )}
+
+      {/* 最近使った場所 */}
+      {locHistory.length>0&&!pickWard&&!areaQ&&(
+        <div style={{background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)",padding:"8px 14px"}}>
+          <p style={{fontSize:11,color:"var(--txt3)",margin:"0 0 6px",fontWeight:500}}>最近使った場所</p>
+          {locHistory.map((h,i)=>(
+            <div key={i} onClick={()=>pickArea(h.area,h.ward)} style={{
+              padding:"8px 2px",
+              borderBottom:i<locHistory.length-1?"0.5px solid var(--bdr)":"none",
+              fontSize:14,cursor:"pointer",display:"flex",gap:8,
+            }}>
+              <span style={{color:"var(--txt3)",fontSize:12,flexShrink:0,alignSelf:"center"}}>{h.ward}</span>
+              <span style={{color:"var(--txt)"}}>{h.area}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 横断検索結果（市区未選択・検索あり）*/}
+      {areaQ&&!pickWard&&(
+        <div style={{flex:1,overflowY:"auto",padding:"0 14px 80px"}}>
+          <p style={{fontSize:11,color:"var(--txt3)",padding:"8px 0 4px"}}>
+            検索結果 {pickerAreas.length}件
+          </p>
+          {pickerAreas.length===0&&<p style={{color:"var(--txt3)",fontSize:13,padding:"8px 0"}}>該当なし</p>}
+          {pickerAreas.map((item,i)=>(
+            <div key={i} onClick={()=>pickArea(item.area,item.ward)} style={{
+              padding:"11px 2px",borderBottom:"0.5px solid var(--bdr)",
+              fontSize:15,cursor:"pointer",display:"flex",gap:10,alignItems:"center"
+            }}>
+              <span style={{color:"var(--txt3)",fontSize:12,flexShrink:0}}>{item.ward}</span>
+              <span>{item.area}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 市区グループ選択 */}
+      {!areaQ&&(
+      <div style={{overflowY:"auto",flex:1}}>
+        {/* 定義済みグループ */}
+        {WARD_GROUPS.map(grp=>{
+          const available=grp.wards.filter(w=>locDB[w]);
+          if(available.length===0)return null;
+          return(
+            <div key={grp.label} style={{borderBottom:"0.5px solid var(--bdr)"}}>
+              <p style={{fontSize:11,color:"var(--txt3)",padding:"6px 14px 4px",
+                         background:"var(--bg3)",margin:0,fontWeight:500}}>{grp.label}</p>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,padding:"8px 12px"}}>
+                {available.map(w=>(
+                  <button key={w} onClick={()=>{setPickWard(w);setAreaQ("");}} style={{
+                    padding:"7px 14px",borderRadius:20,cursor:"pointer",fontSize:14,
+                    border:`0.5px solid ${pickWard===w?"var(--info)":"var(--bdr)"}`,
+                    background:pickWard===w?"var(--info-bg)":"var(--bg)",
+                    color:pickWard===w?"var(--info)":"var(--txt)",
+                    fontWeight:pickWard===w?500:400,
+                  }}>{w}</button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        {/* その他（グループ外のward）*/}
+        {(()=>{
+          const defined=WARD_GROUPS.flatMap(g=>g.wards);
+          const others=wards.filter(w=>!defined.includes(w)&&locDB[w]);
+          if(others.length===0)return null;
+          return(
+            <div style={{borderBottom:"0.5px solid var(--bdr)"}}>
+              <p style={{fontSize:11,color:"var(--txt3)",padding:"6px 14px 4px",
+                         background:"var(--bg3)",margin:0,fontWeight:500}}>その他</p>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,padding:"8px 12px"}}>
+                {others.map(w=>(
+                  <button key={w} onClick={()=>{setPickWard(w);setAreaQ("");}} style={{
+                    padding:"7px 14px",borderRadius:20,cursor:"pointer",fontSize:14,
+                    border:`0.5px solid ${pickWard===w?"var(--info)":"var(--bdr)"}`,
+                    background:pickWard===w?"var(--info-bg)":"var(--bg)",
+                    color:pickWard===w?"var(--info)":"var(--txt)",
+                    fontWeight:pickWard===w?500:400,
+                  }}>{w}</button>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+      )} {/* end !areaQ */}
+
+      {/* 地名リスト（市区選択後）*/}
+      {pickWard&&(
+        <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"var(--bg3)",
+                     zIndex:50,display:"flex",flexDirection:"column",maxWidth:480,margin:"0 auto"}}>
+          <div style={{...S.hdr,gap:10}}>
+            <button onClick={()=>setPickWard("")} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
+            <span style={{fontSize:15,fontWeight:500}}>{pickWard}</span>
+            <span style={{fontSize:11,color:"var(--txt3)"}}>{(locDB[pickWard]||[]).length}件</span>
+          </div>
+          <div style={{padding:"8px 12px",background:"var(--bg)",borderBottom:"0.5px solid var(--bdr)"}}>
+            <input value={areaQ} onChange={e=>setAreaQ(e.target.value)}
+              placeholder={`${pickWard}内を絞り込み…`} style={S.inp}/>
+          </div>
+          <div style={{overflowY:"auto",flex:1,padding:"0 14px 40px"}}>
+            {pickerAreas.length===0&&<p style={{color:"var(--txt3)",fontSize:13,padding:"16px 0"}}>{locLoad?"読込中…":"該当なし"}</p>}
+            {pickerAreas.map((a,i)=>(
+              <div key={i} onClick={()=>pickArea(a)} style={{
+                padding:"12px 2px",borderBottom:"0.5px solid var(--bdr)",
+                fontSize:15,cursor:"pointer",userSelect:"none"
+              }}>{a}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+    </div>
+  );
+
+  /* ════════════════════════════════
+     空転フォーム
+  ════════════════════════════════ */
+  if(screen==="kuuten") return (
+    <div style={S.wrap}>
+      <div style={{...S.hdr,gap:10}}>
+        <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
+        <p style={{fontSize:16,fontWeight:500,margin:0,color:"var(--err)"}}>空転を記録</p>
+      </div>
+      <div style={S.body}>
+        <div style={S.card}>
+          <label style={S.lbl}>空転の種別</label>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:4}}>
+            {[["A","迎車キャンセル","予約が入ったがキャンセルに"],["B","メーター空転","連続配車中に客を発見しモードを抜けた"]].map(([t,name,desc])=>(
+              <button key={t} onClick={()=>{setKType(t);setKFare(t==="B"?"1000":"500");}} style={{
+                padding:"10px 8px",borderRadius:"var(--r)",cursor:"pointer",textAlign:"left",
+                border:`1.5px solid ${kType===t?"var(--err-bd)":"var(--bdr)"}`,
+                background:kType===t?"var(--err-bg)":"var(--bg)",
+              }}>
+                <p style={{fontSize:13,fontWeight:500,color:kType===t?"var(--err)":"var(--txt)",margin:"0 0 2px"}}>{name}</p>
+                <p style={{fontSize:11,color:"var(--txt3)",margin:0,lineHeight:1.4}}>{desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {kType==="A"&&(
+          <div style={S.card}>
+            <label style={S.lbl}>空転金額</label>
+            <div style={{display:"flex",gap:8,marginBottom:8}}>
+              {[["500","迎車のみ"],["1000","迎車＋予約"]].map(([v,l])=>(
+                <button key={v} onClick={()=>setKFare(v)} style={{
+                  flex:1,padding:"9px 8px",borderRadius:"var(--r)",cursor:"pointer",
+                  border:`0.5px solid ${kFare===v?"var(--err-bd)":"var(--bdr)"}`,
+                  background:kFare===v?"var(--err-bg)":"var(--bg)",
+                  color:kFare===v?"var(--err)":"var(--txt2)",fontSize:13,
+                }}>
+                  <p style={{fontWeight:500,margin:"0 0 1px"}}>¥{parseInt(v).toLocaleString()}</p>
+                  <p style={{fontSize:11,margin:0}}>{l}</p>
+                </button>
+              ))}
+            </div>
+            <input type="tel" value={kFare} onChange={e=>setKFare(e.target.value)}
+              placeholder="金額" style={{...S.inp,fontFamily:"var(--mono)",textAlign:"right"}}/>
+          </div>
+        )}
+        {kType==="B"&&(
+          <div style={S.card}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <label style={{...S.lbl,margin:0}}>空転金額</label>
+              <span style={{fontSize:20,fontWeight:500,fontFamily:"var(--mono)"}}>¥1000（固定）</span>
+            </div>
+          </div>
+        )}
+
+        {/* ⚡ 空転：時刻＋場所ワンタップ取得（その場で押せない時は下で後入力）*/}
+        <button onClick={captureKuuten} disabled={kCapturing} style={{
+          width:"100%",padding:"14px 8px",marginBottom:8,
+          background:kCapturing?"var(--bg2)":(kTime&&kWard)?"var(--ok-bg)":"var(--err-bg)",
+          border:`1.5px solid ${kCapturing?"var(--bdr)":(kTime&&kWard)?"var(--ok-bd)":"var(--err-bd)"}`,
+          borderRadius:"var(--rl)",cursor:kCapturing?"default":"pointer",
+          color:kCapturing?"var(--txt3)":(kTime&&kWard)?"var(--ok)":"var(--err)",
+          display:"flex",flexDirection:"column",alignItems:"center",gap:5,
+        }}>
+          <div style={{display:"flex",alignItems:"center",gap:5,fontSize:15,fontWeight:600}}>
+            <i className={`ti ${kCapturing?"ti-loader-2":"ti-map-pin-bolt"}`}
+               style={{fontSize:18,animation:kCapturing?"spin 1s linear infinite":""}}/>
+            空転発生（時刻＋現在地）
+          </div>
+          <div style={{fontSize:11,textAlign:"center",lineHeight:1.4}}>
+            {kCapturing?"取得中…":(kTime&&kWard)?<>{kTime}<br/>{kWard}{kArea}</>:"タップして取得"}
+          </div>
+        </button>
+
+        <div style={S.card}>
+          <label style={S.lbl}>空転時刻</label>
+          <TimeRow label="" val={kTime} set={setKTime}/>
+        </div>
+
+        <div style={S.card}>
+          <label style={S.lbl}>空転場所</label>
+          <LocBtn ward={kWard} area={kArea} lat={kLat} lng={kLng} onClick={()=>openPicker("k")}/>
+        </div>
+
+        <div style={S.card}>
+          <label style={S.lbl}>メモ</label>
+          <textarea value={kMemo} onChange={e=>setKMemo(e.target.value)} rows={2}
+            placeholder="備考など" style={{...S.inp,padding:"8px 10px",lineHeight:1.5}}/>
+        </div>
+
+        <button onClick={saveKuuten} style={{width:"100%",padding:14,background:"var(--err-bg)",border:"0.5px solid var(--err-bd)",borderRadius:"var(--rl)",fontSize:16,fontWeight:500,cursor:"pointer",color:"var(--err)",marginTop:4}}>
+          空転を記録する
+        </button>
+        <button onClick={()=>setScreen("log")} style={{width:"100%",padding:12,background:"none",border:"none",fontSize:14,cursor:"pointer",color:"var(--txt2)",marginTop:4}}>キャンセル</button>
+      </div>
+    </div>
+  );
+
+  /* ════════════════════════════════
+     乗車記録フォーム
+  ════════════════════════════════ */
+  if(screen==="form") return (
+    <div style={S.wrap}>
+      <div style={{...S.hdr,gap:10}}>
+        <button onClick={()=>setScreen("log")} style={{background:"none",border:"none",fontSize:26,cursor:"pointer",color:"var(--txt)",padding:"8px 16px 8px 4px",minWidth:48,minHeight:48,display:"flex",alignItems:"center"}}>‹</button>
+        <div>
+          <p style={{fontSize:16,fontWeight:500,margin:0}}>{editId?"記録を編集":"新規乗車記録"}</p>
+          {sendResult&&<p style={{fontSize:11,color:sendResult==="ok"?"var(--ok)":"var(--err)",margin:0}}>{sendResult==="ok"?"✓ 送信しました":"⚠ 送信に失敗（保存済）"}</p>}
+        </div>
+      </div>
+      <div style={S.body}>
+
+        {/* 日付 */}
+        <div style={S.card}>
+          <label style={S.lbl}>日付（自動：早朝5時未満は前日シフト扱い）</label>
+          <input value={formDate} onChange={e=>setFormDate(e.target.value)} placeholder="YYYY/MM/DD" style={S.inp}/>
+        </div>
+
+        {/* ⚡ 乗車・降車ワンタップ取得（横並び）*/}
+        {!editId&&(
+          <div style={{display:"flex",gap:8,marginBottom:8}}>
+            {[
+              {label:"乗車",cap:capturePickup,loading:fpCapturing,done:fp&&fpWard,time:fp,ward:fpWard,area:fpArea,
+               bg:"var(--info-bg)",bd:"var(--info-bd)",cl:"var(--info)"},
+              {label:"降車",cap:captureDropoff,loading:fdCapturing,done:fd&&fdWard,time:fd,ward:fdWard,area:fdArea,
+               bg:"var(--warn-bg)",bd:"var(--warn-bd)",cl:"var(--warn)"},
+            ].map(({label,cap,loading,done,time,ward,area,bg,bd,cl})=>(
+              <button key={label} onClick={cap} disabled={loading} style={{
+                flex:1,padding:"14px 8px",
+                background:loading?"var(--bg2)":done?"var(--ok-bg)":bg,
+                border:`1.5px solid ${loading?"var(--bdr)":done?"var(--ok-bd)":bd}`,
+                borderRadius:"var(--rl)",cursor:loading?"default":"pointer",
+                color:loading?"var(--txt3)":done?"var(--ok)":cl,
+                display:"flex",flexDirection:"column",alignItems:"center",gap:5,
+              }}>
+                <div style={{display:"flex",alignItems:"center",gap:5,fontSize:15,fontWeight:600}}>
+                  <i className={`ti ${loading?"ti-loader-2":"ti-map-pin-bolt"}`}
+                     style={{fontSize:18,animation:loading?"spin 1s linear infinite":""}}/>
+                  {label}
+                </div>
+                <div style={{fontSize:11,textAlign:"center",lineHeight:1.4}}>
+                  {loading?"取得中…":done?<>{time}<br/>{ward}{area}</>:"タップして取得"}
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* 乗車・降車 時刻＋場所（手動修正用）*/}
+        <div style={S.card}>
+          <div style={{marginBottom:12}}>
+            <label style={{...S.lbl,color:"var(--info)"}}>乗車</label>
+            <TimeRow label="時刻" val={fp} set={setFp}/>
+            <LocBtn ward={fpWard} area={fpArea} lat={fpLat} lng={fpLng} onClick={()=>openPicker("p")}/>
+          </div>
+          <div style={{borderTop:"0.5px solid var(--bdr)",paddingTop:12}}>
+            <label style={{...S.lbl,color:"var(--warn)"}}>降車</label>
+            <TimeRow label="時刻" val={fd} set={setFd} jitsuLabel={jitsu}/>
+            <LocBtn ward={fdWard} area={fdArea} lat={fdLat} lng={fdLng} onClick={()=>openPicker("d")}/>
+          </div>
+        </div>
+
+        <div style={S.card}>
+          <label style={S.lbl}>料金（円）</label>
+          <input type="tel" value={fare} onChange={e=>setFare(e.target.value)} placeholder="0"
+            style={{...S.inp,fontSize:28,fontFamily:"var(--mono)",textAlign:"right",padding:"10px 12px"}}/>
+        </div>
+
+        <div style={S.card}>
+          <label style={S.lbl}>支払{!pay&&<span style={{color:"var(--err)",marginLeft:6,fontWeight:600}}>※選択してください</span>}</label>
+          <Chip opts={payOpts} val={pay} onC={setPay} clrMap={PAY_CLR}/>
+          {(pay==="イースタン"||pay==="その他")&&(
+            <div style={{marginTop:10}}>
+              <label style={{...S.lbl,color:"var(--warn)"}}>
+                {pay==="イースタン"?"お客様氏名（イースタン報告用）":"支払い詳細メモ（任意）"}
+              </label>
+              <input value={easternName} onChange={e=>setEasternName(e.target.value)}
+                placeholder={pay==="イースタン"?"例：山田 太郎":"例：〇〇会社チケット"}
+                style={S.inp}/>
+            </div>
+          )}
+        </div>
+
+        <div style={S.card}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div><label style={S.lbl}>アカウント</label><Chip opts={accOpts} val={acc} onC={setAcc}/></div>
+            <div><label style={S.lbl}>ステータス</label><Chip opts={statOpts} val={stat} onC={setStat}/></div>
+          </div>
+        </div>
+
+        <div style={S.card}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div><label style={S.lbl}>サンキュー</label><Chip opts={sankyuOpts} val={sankyu} onC={setSankyu}/></div>
+            <div>
+              <label style={S.lbl}>固定客</label>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:4}}>
+                {KOTEI_OPTS.map(o=>(
+                  <button key={o} onClick={()=>setKotei(o)} style={{
+                    padding:"6px 10px",borderRadius:20,fontSize:13,cursor:"pointer",
+                    border:`0.5px solid ${kotei===o?"var(--info)":"var(--bdr)"}`,
+                    background:kotei===o?"var(--bg2)":"var(--bg)",
+                    color:kotei===o?"var(--info)":"var(--txt2)",fontWeight:kotei===o?500:400,
+                  }}>
+                    {o}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          {kotei!=="N"&&(
+            <div style={{marginTop:12}}>
+              <label style={{...S.lbl,color:"var(--info)"}}>
+                固定客メモ（名前・宛先・ひとこと）
+              </label>
+              <input value={koteiMemo} onChange={e=>setKoteiMemo(e.target.value)}
+                placeholder="例：伊藤忠のハラダさん／朝 田園調布→南青山"
+                style={S.inp}/>
+            </div>
+          )}
+        </div>
+
+        <div style={S.card}>
+          <Toggle on={yuusen} onToggle={()=>setYuusen(v=>!v)}
+            label="優先パス" sub="該当する場合のみON" color="var(--warn)"/>
+        </div>
+
+        {/* 客種別（複数選択可）*/}
+        <div style={S.card}>
+          <label style={S.lbl}>客種別（該当するものをチェック）</label>
+          <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap"}}>
+            {[
+              {v:"インバウンド",c:"var(--warn)",cb:"var(--warn-bd)",cbg:"var(--warn-bg)"},
+              {v:"ホスト払い",c:"var(--info)",cb:"var(--info-bd)",cbg:"var(--info-bg)"},
+              {v:"エコノミーGO",c:"var(--ok)",cb:"var(--ok-bd)",cbg:"var(--ok-bg)"},
+              {v:"障割",c:"var(--txt2)",cb:"var(--bdr2)",cbg:"var(--bg2)"},
+              {v:"予約",c:"var(--err)",cb:"var(--err-bd)",cbg:"var(--err-bg)"},
+              {v:"定額",c:"var(--txt2)",cb:"var(--bdr2)",cbg:"var(--bg2)"},
+              {v:"会社指定",c:"var(--txt2)",cb:"var(--bdr2)",cbg:"var(--bg2)"},
+            ].map(({v,c,cb,cbg})=>{
+              const sel=Array.isArray(custType)&&custType.includes(v);
+              return(
+                <button key={v} onClick={()=>setCustType(prev=>{
+                  const arr=Array.isArray(prev)?[...prev]:[];
+                  return sel?arr.filter(x=>x!==v):[...arr,v];
+                })} style={{
+                  padding:"9px 14px",borderRadius:"var(--r)",cursor:"pointer",fontSize:13,
+                  border:`0.5px solid ${sel?cb:"var(--bdr)"}`,
+                  background:sel?cbg:"var(--bg)",
+                  color:sel?c:"var(--txt2)",fontWeight:sel?500:400,
+                }}>
+                  {sel?"✓ ":""}{v}
+                </button>
+              );
+            })}
+          </div>
+          {Array.isArray(custType)&&custType.length===0&&<p style={{fontSize:10,color:"var(--txt3)",margin:"6px 0 0"}}>何も選択しない＝一般（日本人）</p>}
+        </div>
+
+        <div style={S.card}>
+          <label style={S.lbl}>メモ・備忘録</label>
+          <textarea value={memo} onChange={e=>setMemo(e.target.value)} rows={3}
+            placeholder="案件のメモ、気になったこと等"
+            style={{...S.inp,padding:"8px 10px",lineHeight:1.6}}/>
+        </div>
+
+        {/* 必須項目チェック */}
+        {(()=>{
+          const missing=[];
+          if(!fp) missing.push("乗車時間");
+          if(!fd) missing.push("降車時間");
+          if(!fpWard) missing.push("乗車地");
+          if(!fdWard) missing.push("降車地");
+          if(!fare) missing.push("料金");
+          const canSave=missing.length===0&&!sending;
+          return(<>
+            {missing.length>0&&(
+              <p style={{fontSize:12,color:"var(--err)",margin:"0 0 8px",padding:"8px 12px",background:"var(--err-bg)",borderRadius:"var(--r)"}}>
+                未入力：{missing.join("・")}
+              </p>
+            )}
+            <button onClick={saveTrip} disabled={!canSave} style={{
+              width:"100%",padding:14,background:"var(--bg)",border:"0.5px solid var(--bdr2)",
+              borderRadius:"var(--rl)",fontSize:16,fontWeight:500,
+              cursor:canSave?"pointer":"default",
+              color:"var(--txt)",opacity:canSave?1:0.4,marginTop:4
+            }}>
+              {sending?"送信中…":(FORM_ID?"✓ 保存してシートへ送信":"✓ 保存する")}
+            </button>
+          </>);
+        })()}
+        <button onClick={()=>{clearDraft();setScreen("log");}} style={{width:"100%",padding:12,background:"none",border:"none",fontSize:14,cursor:"pointer",color:"var(--txt2)",marginTop:4}}>キャンセル（下書き破棄）</button>
+      </div>
+    </div>
+  );
+
+  /* ════════════════════════════════
+     ログ一覧
+  ════════════════════════════════ */
+  return (
+    <div style={S.wrap}>
+      <div style={S.hdr}>
+        <div>
+          <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+            <p style={{fontSize:16,fontWeight:500,margin:0}}>営業メモ <span style={{fontSize:11,fontWeight:700,color:"#fff",background:"var(--info)",padding:"1px 7px",borderRadius:10}}>B勤</span></p>
+            <span style={{fontSize:18,fontWeight:700,color:"var(--info)"}}>{trips.length}<span style={{fontSize:12,fontWeight:400,color:"var(--txt2)"}}>件</span></span>
+            {kuutens.length>0&&<span style={{fontSize:13,color:"var(--err)"}}>{kuutens.length}空転</span>}
+            {unsyncedCount>0&&<span style={{fontSize:11,color:"var(--warn)"}}>未送信{unsyncedCount}</span>}
+          </div>
+          <p style={{fontSize:11,color:"var(--txt2)",margin:0}}>{trips[0]?.date||getShiftDate()}</p>
+        </div>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          {/* 画面スリープ防止トグル（対応端末のみ表示）*/}
+          {wakeSupported&&(
+            <button onClick={()=>setWakeOn(v=>!v)} style={{
+              display:"flex",alignItems:"center",gap:4,padding:"7px 11px",
+              background:wakeOn?"var(--ok-bg)":"var(--bg2)",
+              border:`0.5px solid ${wakeOn?"var(--ok-bd)":"var(--bdr2)"}`,
+              borderRadius:"var(--r)",fontSize:13,cursor:"pointer",
+              color:wakeOn?"var(--ok)":"var(--txt2)",
+            }} title={wakeOn?"画面スリープ防止：ON":"画面スリープ防止：OFF"}>
+              <i className={wakeOn?"ti ti-bulb":"ti ti-bulb-off"}/>{wakeOn?"点灯":"消灯"}
+            </button>
+          )}
+          {/* 出勤記録ボタン削除済み - 合計カードの日報ボタンを使用 */}
+          {/* シフトメモボタン */}
+          <button onClick={()=>setShowMemo(true)} style={{
+            display:"flex",alignItems:"center",gap:4,padding:"7px 11px",
+            background:shiftMemo?"var(--warn-bg)":"var(--bg2)",
+            border:`0.5px solid ${shiftMemo?"var(--warn-bd)":"var(--bdr2)"}`,
+            borderRadius:"var(--r)",fontSize:13,cursor:"pointer",
+            color:shiftMemo?"var(--warn)":"var(--txt2)",
+          }} title="シフトメモ">
+            <i className="ti ti-notes"/>{shiftMemo?"📝":"メモ"}
+          </button>
+          {/* 要修正フィルター */}
+          {fixCount>0&&(
+            <button onClick={()=>setShowFixOnly(v=>!v)} style={{
+              display:"flex",alignItems:"center",gap:4,padding:"7px 11px",
+              background:showFixOnly?"var(--warn-bg)":"var(--bg2)",
+              border:`0.5px solid ${showFixOnly?"var(--warn-bd)":"var(--bdr2)"}`,
+              borderRadius:"var(--r)",fontSize:13,cursor:"pointer",
+              color:showFixOnly?"var(--warn)":"var(--warn)",fontWeight:500,
+            }}>
+              <i className="ti ti-flag-3"/>要修正 {fixCount}件
+            </button>
+          )}
+          {(trips.length>0||kuutens.length>0)&&(
+            <button onClick={doExport} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 11px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--txt)"}}>
+              <i className="ti ti-copy"/>{copied?"済 ✓":"CSV"}
+            </button>
+          )}
+          {(trips.length>0||kuutens.length>0)&&(
+            <button onClick={()=>{
+              const msg=fixCount>0
+                ?`要修正フラグが ${fixCount}件 あります。\n修正完了しましたか？\n\n「OK」で全記録を削除します。`
+                :"今日の全記録を削除しますか？";
+              if(confirm(msg)){
+                setTrips([]);setKuutens([]);setBreaks([]);setShiftMemo("");setShowFixOnly(false);
+                /* 出勤・日報データも全クリア */
+                setNippouForm({date:"",dow:"",nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",kinmu:"",
+                  zensokou:"",jissha:"",musen:"",shukkin:"",taisha:"",
+                  rank01:"",rank02:"",taxi:"JAP",kurotaku:"青",deban:"J"});
+                setShukkinForm({shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:"",rank02:""});
+                setLastRestEnd(null);
+                try{localStorage.removeItem(NIPPOU_START_KEY);localStorage.removeItem("eimu_B_last_rest_end");}catch{}
+              }
+            }} style={{padding:"7px 10px",background:"var(--bg2)",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--err)"}}>
+              <i className="ti ti-trash"/>
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div style={S.body}>
+
+        {/* 12 時間帯目標アラート */}
+        {(()=>{
+          const now=getShiftNow();
+          const h=parseInt(now.split(":")[0]);
+          const bm=[...BENCHMARKS].reverse().find(b=>h>=b.hour);
+          if(!bm)return null;
+          const okFare=total>=bm.minF;
+          const okTrips=trips.length>=bm.trips;
+          const ok=okFare||okTrips;
+          const diff=bm.minF-total;
+          return(
+            <div style={{
+              ...S.card,marginBottom:8,
+              borderLeft:`3px solid ${ok?"var(--ok)":diff>10000?"var(--err)":"var(--warn)"}`,
+              padding:"8px 12px",
+            }}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:11,color:"var(--txt3)"}}>{(()=>{const ds=(trips.length>0&&trips[0].date)?trips[0].date:getShiftDate();const dw=getDow(ds);return dw?dw+"曜 ":"";})()}〜{bm.hour}時目標</span>
+                <span style={{fontSize:11,fontWeight:500,color:ok?"var(--ok)":diff>10000?"var(--err)":"var(--warn)"}}>
+                  {ok?"✓ 目標クリア":okTrips?"回数OK（売上"+diff.toLocaleString()+"円不足）":"¥"+diff.toLocaleString()+"円 / "+Math.max(0,bm.trips-trips.length)+"件 不足"}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
+        {(trips.length>0||kuutens.length>0)&&(
+          <div style={{...S.card,marginBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:kuutens.length>0?6:0}}>
+              <div>
+                <span style={{fontSize:13,color:"var(--txt2)"}}>乗車合計</span>
+                {trips.length>0&&<span style={{fontSize:11,color:"var(--txt3)",marginLeft:8}}>平均 ¥{Math.round(total/trips.length).toLocaleString()}</span>}
+              </div>
+              <span style={{fontSize:20,fontWeight:500}}>¥{total.toLocaleString()}</span>
+            </div>
+            {kuutens.length>0&&(
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:6,borderTop:"0.5px solid var(--bdr)"}}>
+                <span style={{fontSize:12,color:"var(--err)"}}>空転合計（控除）</span>
+                <span style={{fontSize:15,fontWeight:500,color:"var(--err)"}}>−¥{kuutenTotal.toLocaleString()}</span>
+              </div>
+            )}
+            {trips.length>0&&(
+              <div style={{paddingTop:8,marginTop:kuutens.length>0?0:6,borderTop:"0.5px solid var(--bdr)"}}>
+                <button onClick={()=>setScreen("nokin")} style={{
+                  width:"100%",padding:"10px",
+                  background:"var(--ok-bg)",border:"0.5px solid var(--ok-bd)",
+                  borderRadius:"var(--r)",fontSize:14,fontWeight:500,
+                  cursor:"pointer",color:"var(--ok)",
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+                  marginBottom:6,
+                }}>
+                  <i className="ti ti-coins" style={{fontSize:16}}/>
+                  納金用データ作成
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ③ 日報ボタン：常時表示（時刻ロック撤去） */}
+        {(()=>{
+          const ready=true; /* いつでも開ける */
+          return(
+            <div style={{...S.card,marginBottom:10}}>
+              <button onClick={()=>{
+                const saved=(()=>{try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null");}catch{return null;}})();
+                const r2=shukkinForm.rank02||"";
+                /* 乗車記録があればその日付を使う（12時以降も前シフトの日付が正しく入る）*/
+                const shiftDate = trips.length>0 ? trips[0].date : getShiftDate();
+                const [sy,sm,sd2]=shiftDate.split('/').map(Number);
+                const dow2=["日","月","火","水","木","金","土"][new Date(sy,sm-1,sd2).getDay()];
+                setNippouForm(f=>({...f,
+                  date:shiftDate,
+                  dow:dow2,
+                  shukkin:saved?.shukkin||"", musen:saved?.musen||"",
+                  taxi:saved?.taxi||"JAP", kurotaku:saved?.kurotaku||"青",
+                  deban:saved?.deban||"J", rank01:saved?.rank01||"",
+                  rank02:r2, taisha:"",
+                  nokin:"",eishu:"",kaisu:String(trips.length),handle:"",kyukei:"",kinmu:"",zensokou:"",jissha:"",
+                }));
+                setScreen("nippou_scan");
+              }} style={{
+                width:"100%",padding:"12px",
+                background:ready?"var(--info-bg)":"var(--bg2)",
+                border:`0.5px solid ${ready?"var(--info-bd)":"var(--bdr2)"}`,
+                borderRadius:"var(--r)",fontSize:14,fontWeight:500,
+                cursor:"pointer",color:ready?"var(--info)":"var(--txt3)",
+                display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+              }}>
+                <i className="ti ti-report" style={{fontSize:16}}/>
+                出勤・日報入力
+              </button>
+            </div>
+          );
+        })()}
+
+        {/* 下書きバナー */}
+        {hasDraft&&(
+          <div style={{background:"var(--warn-bg)",border:"1.5px solid var(--warn-bd)",borderRadius:"var(--rl)",padding:"10px 14px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <p style={{fontSize:13,fontWeight:500,color:"var(--warn)",margin:"0 0 2px"}}>入力中の下書きがあります</p>
+              <p style={{fontSize:11,color:"var(--txt3)",margin:0}}>乗車時刻・場所などが保存されています</p>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <button onClick={restoreDraft} style={{padding:"7px 12px",background:"var(--warn-bg)",border:"1px solid var(--warn)",borderRadius:"var(--r)",fontSize:13,fontWeight:500,cursor:"pointer",color:"var(--warn)"}}>
+                復元
+              </button>
+              <button onClick={clearDraft} style={{padding:"7px 10px",background:"none",border:"0.5px solid var(--bdr2)",borderRadius:"var(--r)",fontSize:13,cursor:"pointer",color:"var(--txt3)"}}>
+                破棄
+              </button>
+            </div>
+          </div>
+        )}
+
+
+
+
+        {/* 連続稼働時間 */}
+        {!breakStart&&lastRestEnd&&(()=>{
+          const mins=Math.floor(contiguousSec/60);
+          const hrs=Math.floor(mins/60);
+          const rem=mins%60;
+          const label=hrs>0?`${hrs}時間${rem}分`:`${mins}分`;
+          const limit=389; /* 6時間29分 */
+          const warn=mins>=330; /* 5時間30分 */
+          const danger=mins>=limit;
+          if(mins<30)return null;
+          return(
+            <div style={{
+              marginBottom:8,padding:"8px 12px",borderRadius:"var(--r)",
+              background:danger?"var(--err-bg)":warn?"var(--warn-bg)":"var(--bg2)",
+              border:`0.5px solid ${danger?"var(--err-bd)":warn?"var(--warn-bd)":"var(--bdr)"}`,
+              display:"flex",justifyContent:"space-between",alignItems:"center",
+            }}>
+              <span style={{fontSize:12,color:danger?"var(--err)":warn?"var(--warn)":"var(--txt2)"}}>
+                <i className="ti ti-steering-wheel" style={{marginRight:4}}/>連続稼働
+              </span>
+              <span style={{fontSize:14,fontWeight:500,color:danger?"var(--err)":warn?"var(--warn)":"var(--txt2)"}}>
+                {label}{danger?" ⚠️ 要休憩":warn?" もうすぐ6.5h":""}
+              </span>
+            </div>
+          );
+        })()}
+        {/* 休憩中バナー */}
+        {breakStart&&(          <div style={{background:"var(--ok-bg)",border:"1.5px solid var(--ok-bd)",borderRadius:"var(--rl)",padding:"12px 14px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div>
+              <p style={{fontSize:12,color:"var(--ok)",fontWeight:500,margin:"0 0 2px"}}>
+                <i className="ti ti-coffee" style={{fontSize:12,marginRight:4}}/>休憩中　{breakStart}〜
+              </p>
+              <p style={{fontSize:28,fontWeight:500,fontFamily:"var(--mono)",color:"var(--ok)",margin:0}}>
+                {formatElapsed(elapsed)}
+              </p>
+            </div>
+            <button onClick={endBreak} style={{padding:"10px 18px",background:"var(--ok)",border:"none",borderRadius:"var(--r)",fontSize:14,fontWeight:500,cursor:"pointer",color:"#fff"}}>
+              終了
+            </button>
+          </div>
+        )}
+
+        {/* 休憩サマリー（完了分）*/}
+        {breaks.length===0&&!breakStart&&(
+          <div style={{textAlign:"right",marginBottom:4}}>
+            <button onClick={()=>{setManualBS("");setManualBE("");setScreen("break_manual");}} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ok)",fontSize:12,padding:"4px 0"}}>
+              <i className="ti ti-coffee" style={{marginRight:4}}/>手動で休憩を入力
+            </button>
+          </div>
+        )}
+        {breaks.length>0&&(
+          <div style={{...S.card,marginBottom:10,borderLeft:"3px solid var(--ok)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <span style={{fontSize:13,fontWeight:500,color:"var(--ok)"}}>
+                <i className="ti ti-coffee" style={{marginRight:4}}/>休憩
+              </span>
+              <span style={{fontSize:13,color:totalBreakMins>=130?"var(--ok)":totalBreakMins>=90?"var(--warn)":"var(--txt2)"}}>
+                {totalBreakMins>=130?"✓ "+totalBreakMins+"分（目標達成）":"あと"+(130-totalBreakMins)+"分で130分"}
+              </span>
+            </div>
+            {/* プログレスバー 130分基準 */}
+            <div style={{height:5,background:"var(--bg2)",borderRadius:3,marginBottom:8,position:"relative"}}>
+              <div style={{height:5,borderRadius:3,background:totalBreakMins>=130?"var(--ok)":totalBreakMins>=90?"var(--warn)":"var(--err)",width:`${Math.min(100,totalBreakMins/130*100)}%`,transition:"width .3s"}}/>
+            </div>
+            {breaks.map((b,i)=>(
+              <div key={b.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,color:"var(--txt2)",padding:"3px 0",borderTop:i>0?"0.5px solid var(--bdr)":"none"}}>
+                <span>{i+1}回目　{b.startTime}–{b.endTime}{b.memo?.includes("手動")?" ✎":""}</span>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <span style={{fontFamily:"var(--mono)"}}>{b.minutes}分</span>
+                  <button onClick={()=>setBreaks(bs=>bs.filter(x=>x.id!==b.id))} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:13,padding:"1px 3px"}}>
+                    <i className="ti ti-trash"/>
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div style={{borderTop:"0.5px solid var(--bdr)",paddingTop:6,marginTop:4}}>
+              <button onClick={()=>{setManualBS("");setManualBE("");setScreen("break_manual");}} style={{background:"none",border:"none",cursor:"pointer",color:"var(--ok)",fontSize:12,padding:0}}>
+                ＋ 手動で追加
+              </button>
+            </div>
+          </div>
+        )}
+
+        {trips.length===0&&kuutens.length===0&&(
+          <div style={{textAlign:"center",color:"var(--txt3)",fontSize:14,padding:"60px 20px",lineHeight:2.4}}>
+            まだ記録がありません<br/>左下の ＋ から乗車記録を追加
+          </div>
+        )}
+
+        {displayTrips.map((t,i)=>(
+          <div key={t.id} style={{...S.card,
+            border:`${t.needsFix?"1.5px":"0.5px"} solid ${t.needsFix?"var(--warn-bd)":"var(--bdr)"}`,
+            background:t.needsFix?"var(--warn-bg)":"var(--bg)",
+          }}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+              <div style={{flex:1,minWidth:0}}>
+                <p style={{fontSize:11,color:t.needsFix?"var(--warn)":"var(--txt3)",margin:"0 0 2px",fontWeight:t.needsFix?500:400}}>
+                  #{trips.indexOf(t)+1}　{t.pTime}{t.dTime?` → ${t.dTime}`:""}{t.jitsu?` (${t.jitsu})`:""}
+                  {t.needsFix&&<span style={{marginLeft:6}}>🚩 要修正</span>}
+                  {FORM_ID&&!t.needsFix&&(
+                    t.synced
+                      ?<span style={{marginLeft:6,color:"var(--ok)"}}>●</span>
+                      :<button onClick={async e=>{
+                          e.stopPropagation();
+                          if(!confirm("⚠️ すでに送信済みの可能性があります。\n再送すると重複する場合があります。\n\n本当に再送しますか？")){return;}
+                          const ok=await submitToForm(t);
+                          if(ok){setTrips(ts=>ts.map(x=>x.id===t.id?{...x,synced:true}:x));}
+                          else{alert("送信に失敗しました。電波の状態を確認してください。");}
+                        }} style={{
+                          marginLeft:6,background:"none",border:"0.5px solid var(--warn-bd)",
+                          borderRadius:10,padding:"2px 7px",cursor:"pointer",
+                          fontSize:11,color:"var(--warn)",lineHeight:1.4,
+                        }}>
+                        ○ 再送
+                      </button>
+                  )}
+                </p>
+                <p style={{fontSize:14,fontWeight:500,margin:"0 0 4px",lineHeight:1.5}}>
+                  <span style={{color:"var(--txt2)"}}>{t.pWard||"—"}</span>{t.pArea}
+                  {t.pLat&&<i className="ti ti-map-pin" style={{fontSize:10,color:"var(--ok)",marginLeft:3}}/>}
+                  <span style={{color:"var(--txt3)",margin:"0 5px"}}>→</span>
+                  <span style={{color:"var(--txt2)"}}>{t.dWard||"—"}</span>{t.dArea}
+                  {t.dLat&&<i className="ti ti-map-pin" style={{fontSize:10,color:"var(--ok)",marginLeft:3}}/>}
+                </p>
+                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  <span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:PAY_CLR[t.pay]||"var(--txt2)"}}>{t.pay}</span>
+                  {t.pay==="イースタン"&&t.easternName&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--warn)"}}>{t.easternName}</span>}
+                  {t.yuusen&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--warn-bd)",color:"var(--warn)",background:"var(--warn-bg)"}}>優先パス</span>}
+                  {t.stat!=="GO"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--txt3)"}}>{t.stat}</span>}
+                  {t.acc!=="専用"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--txt3)"}}>{t.acc}</span>}
+                  {t.sankyu!=="通常"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--warn)"}}>{t.sankyu}</span>}
+                  {t.kotei!=="N"&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr)",color:"var(--info)"}}>{t.kotei}({KOTEI_LABELS[t.kotei]})</span>}
+                  {(()=>{const ct=Array.isArray(t.custType)?t.custType:(t.custType&&t.custType!=="日本人"?[t.custType]:[]);return ct.length>0&&ct.map(v=><span key={v} style={{fontSize:11,padding:"2px 8px",borderRadius:10,border:"0.5px solid var(--bdr2)",color:"var(--txt2)",background:"var(--bg2)",marginRight:3}}>{v}</span>);})()}
+                </div>
+                {t.memo&&<p style={{fontSize:12,color:"var(--txt3)",margin:"4px 0 0",lineHeight:1.4}}>{t.memo}</p>}
+                {/* 要修正メモ欄（フラグON時のみ）*/}
+                {t.needsFix&&(
+                  <textarea
+                    value={t.fixNote||""}
+                    onChange={e=>setFixNote(t.id,e.target.value)}
+                    placeholder="何を修正するか（例：料金を¥2,400→¥2,600に）"
+                    rows={2}
+                    style={{...S.inp,marginTop:8,padding:"7px 9px",fontSize:13,
+                            lineHeight:1.5,border:"0.5px solid var(--warn-bd)",
+                            background:"var(--bg)",color:"var(--txt)"}}
+                  />
+                )}
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <p style={{fontSize:18,fontWeight:500,margin:"0 0 4px"}}>¥{t.fare.toLocaleString()}</p>
+                <div style={{display:"flex",gap:0,justifyContent:"flex-end"}}>
+                  <button onClick={()=>toggleFix(t.id)} title={t.needsFix?"修正済みにする":"要修正フラグをつける"}
+                    style={{background:"none",border:"none",cursor:"pointer",
+                            color:t.needsFix?"var(--warn)":"var(--txt3)",fontSize:15,padding:"3px 5px"}}>
+                    <i className={t.needsFix?"ti ti-flag-3":"ti ti-flag"}/>
+                  </button>
+                  <button onClick={()=>{resetTripForm(t);setScreen("form");}} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-edit"/></button>
+                  <button onClick={()=>setTrips(ts=>ts.filter(x=>x.id!==t.id))} style={{background:"none",border:"none",cursor:"pointer",color:"var(--txt3)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-trash"/></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {displayKuutens.map(k=>(
+          <div key={k.id} style={{
+            ...S.card,
+            border:`${k.needsFix?"1.5px":"0.5px"} solid ${k.needsFix?"var(--warn-bd)":"var(--err-bd)"}`,
+            background:k.needsFix?"var(--warn-bg)":"var(--err-bg)",
+          }}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+              <div style={{flex:1}}>
+                <p style={{fontSize:11,color:k.needsFix?"var(--warn)":"var(--err)",margin:"0 0 2px",fontWeight:500}}>
+                  空転 {k.kType==="A"?"【迎車キャンセル】":"【メーター空転】"}　{k.time}
+                  {k.needsFix&&<span style={{marginLeft:6}}>🚩 要修正</span>}
+                </p>
+                <p style={{fontSize:14,color:"var(--txt)",margin:"0 0 2px"}}>
+                  <span style={{color:"var(--txt2)"}}>{k.ward||"—"}</span>{k.area}
+                  {k.lat&&<i className="ti ti-map-pin" style={{fontSize:10,color:"var(--ok)",marginLeft:3}}/>}
+                </p>
+                {k.memo&&<p style={{fontSize:12,color:"var(--txt3)",margin:"2px 0 0"}}>{k.memo}</p>}
+                {k.needsFix&&(
+                  <textarea
+                    value={k.fixNote||""}
+                    onChange={e=>setKFixNote(k.id,e.target.value)}
+                    placeholder="何を修正するか"
+                    rows={2}
+                    style={{...S.inp,marginTop:8,padding:"7px 9px",fontSize:13,
+                            lineHeight:1.5,border:"0.5px solid var(--warn-bd)",
+                            background:"var(--bg)",color:"var(--txt)"}}
+                  />
+                )}
+              </div>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <p style={{fontSize:18,fontWeight:500,color:k.needsFix?"var(--warn)":"var(--err)",margin:"0 0 4px"}}>−¥{k.fare.toLocaleString()}</p>
+                <div style={{display:"flex",gap:0,justifyContent:"flex-end"}}>
+                  <button onClick={()=>toggleKFix(k.id)} title={k.needsFix?"修正済みにする":"要修正フラグをつける"}
+                    style={{background:"none",border:"none",cursor:"pointer",
+                            color:k.needsFix?"var(--warn)":"var(--txt3)",fontSize:15,padding:"3px 5px"}}>
+                    <i className={k.needsFix?"ti ti-flag-3":"ti ti-flag"}/>
+                  </button>
+                  <button onClick={()=>setKuutens(ks=>ks.filter(x=>x.id!==k.id))} style={{background:"none",border:"none",cursor:"pointer",color:k.needsFix?"var(--warn)":"var(--err)",fontSize:15,padding:"3px 5px"}}><i className="ti ti-trash"/></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ボトムバー：乗車→休憩→空転 */}
+      <div style={S.bottomBar}>
+        <button onClick={()=>{resetTripForm();setScreen("form");}} style={{
+          ...S.bbBtn,color:"var(--info)"
+        }}>
+          <i className="ti ti-plus" style={{fontSize:26,fontWeight:300}}/>
+          乗車
+        </button>
+        <div style={{width:"0.5px",background:"var(--bdr)",alignSelf:"stretch",margin:"10px 0"}}/>
+        <button onClick={breakStart?endBreak:startBreak} style={{
+          ...S.bbBtn,
+          color:breakStart?"var(--ok)":"var(--txt2)",
+          background:breakStart?"var(--ok-bg)":"none",
+        }}>
+          <i className={`ti ${breakStart?"ti-player-stop":"ti-coffee"}`} style={{fontSize:22}}/>
+          {breakStart?formatElapsed(elapsed):"休憩"}
+        </button>
+        <div style={{width:"0.5px",background:"var(--bdr)",alignSelf:"stretch",margin:"10px 0"}}/>
+        <button onClick={()=>{resetKuutenForm();setScreen("kuuten");}} style={{
+          ...S.bbBtn,color:"var(--err)"
+        }}>
+          <i className="ti ti-alert-triangle" style={{fontSize:22}}/>
+          空転
+        </button>
+      </div>
+
+      {/* シフトメモ モーダル */}
+      {showMemo&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:50,display:"flex",flexDirection:"column",justifyContent:"flex-end",maxWidth:480,margin:"0 auto"}}>
+          <div style={{background:"var(--bg)",borderRadius:"18px 18px 0 0",padding:"16px 14px 32px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <p style={{fontSize:15,fontWeight:500,margin:0}}>📝 シフトメモ</p>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={insertTime} style={{
+                  padding:"5px 12px",borderRadius:16,cursor:"pointer",fontSize:12,
+                  border:"0.5px solid var(--info-bd)",background:"var(--info-bg)",color:"var(--info)"
+                }}>
+                  <i className="ti ti-clock" style={{marginRight:3}}/>{getShiftNow()}を挿入
+                </button>
+                <button onClick={()=>setShowMemo(false)} style={{
+                  padding:"5px 12px",borderRadius:16,cursor:"pointer",fontSize:12,
+                  border:"0.5px solid var(--bdr2)",background:"var(--bg2)",color:"var(--txt2)"
+                }}>閉じる</button>
+              </div>
+            </div>
+            <textarea
+              value={shiftMemo}
+              onChange={e=>setShiftMemo(e.target.value)}
+              placeholder={"[時刻を挿入] ボタンでタイムスタンプを追加\n例:\n[25:14] GOシステムエラー発生\n[28:30] 渋滞で遅延"}
+              rows={8}
+              style={{...S.inp,width:"100%",lineHeight:1.7,fontSize:14,padding:"10px",
+                      resize:"none",boxSizing:"border-box"}}
+            />
+            {shiftMemo&&(
+              <button onClick={()=>{
+                setShiftMemo("");
+                try{localStorage.removeItem("eimu_B_shift_memo");}catch{}
+              }} style={{
+                marginTop:6,padding:"4px 10px",background:"none",border:"none",
+                fontSize:12,cursor:"pointer",color:"var(--err)"
+              }}>メモを削除</button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App,null));
+</script>
+</body>
+</html>
