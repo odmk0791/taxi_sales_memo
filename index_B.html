@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>営業メモ B勤</title>
+  <title>営業メモ A勤</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.x/dist/tabler-icons.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
@@ -710,13 +710,13 @@ function App(){
   const [nippouForm,setNippouForm]=useState({
     date:"",dow:"",nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",kinmu:"",
     zensokou:"",jissha:"",musen:"",shukkin:"",taisha:"",
-    rank01:"",rank02:"",taxi:"JAP",kurotaku:"青",deban:"J",
+    rank01:"",rank02:"",taxi:"JAP",kurotaku:"青",deban:"A",
   });
   const setNF=(field,val)=>setNippouForm(f=>({...f,[field]:val}));
   /* 出勤記録（出勤時に入力→日報スキャンに引き継ぎ）*/
   const [shukkinForm,setShukkinForm]=useState(()=>{
-    try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null")||{shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:"",rank02:""};}
-    catch{return{shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:"",rank02:""};}
+    try{return JSON.parse(localStorage.getItem(NIPPOU_START_KEY)||"null")||{shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"A",rank01:"",rank02:""};}
+    catch{return{shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"A",rank01:"",rank02:""};}
   });
   const setSF=(f,v)=>setShukkinForm(s=>({...s,[f]:v}));
   const [showRank02,setShowRank02]=useState(false);
@@ -2150,7 +2150,7 @@ function App(){
       <div style={S.hdr}>
         <div>
           <div style={{display:"flex",alignItems:"baseline",gap:8}}>
-            <p style={{fontSize:16,fontWeight:500,margin:0}}>営業メモ <span style={{fontSize:11,fontWeight:700,color:"#fff",background:"var(--info)",padding:"1px 7px",borderRadius:10}}>B勤</span></p>
+            <p style={{fontSize:16,fontWeight:500,margin:0}}>営業メモ <span style={{fontSize:11,fontWeight:700,color:"#fff",background:"var(--info)",padding:"1px 7px",borderRadius:10}}>A勤</span></p>
             <span style={{fontSize:18,fontWeight:700,color:"var(--info)"}}>{trips.length}<span style={{fontSize:12,fontWeight:400,color:"var(--txt2)"}}>件</span></span>
             {kuutens.length>0&&<span style={{fontSize:13,color:"var(--err)"}}>{kuutens.length}空転</span>}
             {unsyncedCount>0&&<span style={{fontSize:11,color:"var(--warn)"}}>未送信{unsyncedCount}</span>}
@@ -2208,8 +2208,8 @@ function App(){
                 /* 出勤・日報データも全クリア */
                 setNippouForm({date:"",dow:"",nokin:"",eishu:"",kaisu:"",handle:"",kyukei:"",kinmu:"",
                   zensokou:"",jissha:"",musen:"",shukkin:"",taisha:"",
-                  rank01:"",rank02:"",taxi:"JAP",kurotaku:"青",deban:"J"});
-                setShukkinForm({shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"J",rank01:"",rank02:""});
+                  rank01:"",rank02:"",taxi:"JAP",kurotaku:"青",deban:"A"});
+                setShukkinForm({shukkin:"",musen:"",taxi:"JAP",kurotaku:"青",deban:"A",rank01:"",rank02:""});
                 setLastRestEnd(null);
                 try{localStorage.removeItem(NIPPOU_START_KEY);localStorage.removeItem("eimu_B_last_rest_end");}catch{}
               }
@@ -2297,7 +2297,7 @@ function App(){
                   dow:dow2,
                   shukkin:saved?.shukkin||"", musen:saved?.musen||"",
                   taxi:saved?.taxi||"JAP", kurotaku:saved?.kurotaku||"青",
-                  deban:saved?.deban||"J", rank01:saved?.rank01||"",
+                  deban:saved?.deban||"A", rank01:saved?.rank01||"",
                   rank02:r2, taisha:"",
                   nokin:"",eishu:"",kaisu:String(trips.length),handle:"",kyukei:"",kinmu:"",zensokou:"",jissha:"",
                 }));
